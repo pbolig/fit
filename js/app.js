@@ -65,33 +65,46 @@ class App {
       if (!syncBadge) return;
 
       syncBadge.className = 'sync-status-badge';
+      syncBadge.title = message || 'Estado de sincronización';
+
       if (status === SyncStatus.SYNCING) {
         syncBadge.classList.add('badge-syncing');
         syncBadge.innerHTML = `
           <span class="sync-spinner"></span>
           <span class="sync-text">Sincronizando...</span>
         `;
+      } else if (status === SyncStatus.LOCAL) {
+        syncBadge.classList.add('badge-local');
+        syncBadge.innerHTML = `
+          <span class="sync-dot dot-blue"></span>
+          <span class="sync-text">${message || 'Modo Local (Invitado)'}</span>
+        `;
       } else if (status === SyncStatus.OFFLINE) {
         syncBadge.classList.add('badge-offline');
         syncBadge.innerHTML = `
           <span class="sync-dot dot-gray"></span>
-          <span class="sync-text">Modo Local (Offline)</span>
+          <span class="sync-text">Sin conexión (Offline)</span>
         `;
       } else if (status === SyncStatus.ERROR) {
         syncBadge.classList.add('badge-error');
         syncBadge.innerHTML = `
           <span class="sync-dot dot-red"></span>
-          <span class="sync-text">Sin conexión a Supabase</span>
+          <span class="sync-text">Error de sincronización</span>
         `;
-      } else {
-        // En línea / Sincronizado
+      } else if (status === SyncStatus.SYNCED) {
         syncBadge.classList.add('badge-online');
         syncBadge.innerHTML = `
           <span class="sync-dot dot-green"></span>
-          <span class="sync-text">Sincronizado</span>
+          <span class="sync-text">Sincronizado con Supabase</span>
         `;
       }
     });
+
+    // Clic en el badge de sincronización lleva a la sección de Configuración/Nube
+    if (syncBadge) {
+      syncBadge.style.cursor = 'pointer';
+      syncBadge.addEventListener('click', () => router.navigate('settings'));
+    }
 
     // Clic en avatar lleva a Perfil Biométrico
     const userBtn = document.getElementById('header-user-btn');

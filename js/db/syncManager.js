@@ -9,15 +9,16 @@ import { SupabaseManager } from './supabaseClient.js';
 import { CONFIG } from '../config.js';
 
 export const SyncStatus = {
-  ONLINE: 'online',
-  OFFLINE: 'offline',
+  SYNCED: 'synced',
   SYNCING: 'syncing',
+  LOCAL: 'local',
+  OFFLINE: 'offline',
   ERROR: 'error'
 };
 
 class SyncManager {
   constructor() {
-    this.status = navigator.onLine ? SyncStatus.ONLINE : SyncStatus.OFFLINE;
+    this.status = navigator.onLine ? SyncStatus.LOCAL : SyncStatus.OFFLINE;
     this.isSyncing = false;
     this.lastSyncTime = null;
     this.heartbeatTimer = null;
@@ -31,11 +32,12 @@ class SyncManager {
     // Iniciar latido periódico de sincronización
     this.startHeartbeat();
 
-    // Intentar sincronización inicial si estamos en línea
+    // Comprobación inicial de estado
     if (navigator.onLine) {
-      setTimeout(() => this.syncNow(), 1500);
+      setTimeout(() => this.syncNow(), 800);
     } else {
-      this.notifyStatus(SyncStatus.OFFLINE, 'Modo sin conexión');
+      this.status = SyncStatus.OFFLINE;
+      this.notifyStatus(SyncStatus.OFFLINE, 'Sin conexión (Offline)');
     }
   }
 
@@ -53,14 +55,12 @@ class SyncManager {
 
   async handleNetworkChange(isOnline) {
     if (isOnline) {
-      console.log('🌐 Conexión detectada. Iniciando sincronización silenciosa...');
-      this.status = SyncStatus.ONLINE;
-      this.notifyStatus(SyncStatus.ONLINE, 'En línea');
+      console.log('🌐 Conexión detectada.');
       await this.syncNow();
     } else {
       console.log('📴 Conexión perdida. Operando en modo local 100% offline.');
       this.status = SyncStatus.OFFLINE;
-      this.notifyStatus(SyncStatus.OFFLINE, 'Modo local sin conexión');
+      this.notifyStatus(SyncStatus.OFFLINE, 'Sin conexión (Offline)');
     }
   }
 
@@ -97,7 +97,8 @@ class SyncManager {
     const client = await SupabaseManager.getClient();
     if (!client) {
       // Supabase aún no está configurado por el usuario, operamos 100% en local
-      this.notifyStatus(SyncStatus.ONLINE, 'Modo local (Supabase no vinculado)');
+      this.status = SyncStatus.LOCAL;
+      this.notifyStatus(SyncStatus.LOCAL, 'Modo Local (Sin vincular)');
       return;
     }
 
@@ -112,7 +113,8 @@ class SyncManager {
 
     if (!session) {
       // Usuario navegando como invitado sin cuenta en Supabase todavía
-      this.notifyStatus(SyncStatus.ONLINE, 'Modo local (Sin sesión iniciada)');
+      this.status = SyncStatus.LOCAL;
+      this.notifyStatus(SyncStatus.LOCAL, 'Modo Local (Sin iniciar sesión)');
       return;
     }
 
@@ -157,8 +159,8 @@ class SyncManager {
       await this.pullRemoteData(client, session.user.id);
 
       this.lastSyncTime = new Date();
-      this.status = SyncStatus.ONLINE;
-      this.notifyStatus(SyncStatus.ONLINE, 'Sincronizado con Supabase');
+      this.status = SyncStatus.SYNCED;
+      this.notifyStatus(SyncStatus.SYNCED, 'Sincronizado con Supabase');
     } catch (err) {
       console.error('Error durante la sincronización:', err);
       this.status = SyncStatus.ERROR;

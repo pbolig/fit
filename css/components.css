@@ -288,10 +288,22 @@ label {
   color: #34d399;
 }
 
+.badge-local {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.25);
+  color: #7dd3fc;
+}
+
 .badge-offline {
   background: rgba(148, 163, 184, 0.12);
   border-color: rgba(148, 163, 184, 0.25);
   color: #cbd5e1;
+}
+
+.badge-error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
 }
 
 .badge-syncing {
@@ -307,6 +319,7 @@ label {
 }
 
 .dot-green { background: #10b981; box-shadow: 0 0 8px #10b981; }
+.dot-blue { background: #38bdf8; box-shadow: 0 0 6px rgba(56, 189, 248, 0.5); }
 .dot-gray { background: #94a3b8; }
 .dot-red { background: #ef4444; }
 
