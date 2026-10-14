@@ -28,13 +28,23 @@ class Router {
     this.container = containerElement;
 
     window.addEventListener('hashchange', () => {
-      const hash = window.location.hash.replace('#', '') || 'dashboard';
+      let hash = window.location.hash.replace('#', '') || 'dashboard';
+      if (hash.includes('access_token=') || hash.includes('error=')) {
+        hash = 'dashboard';
+      }
       this.navigate(hash, false);
     });
 
-    // Cargar ruta inicial
-    const initialHash = window.location.hash.replace('#', '') || 'dashboard';
-    this.navigate(initialHash, false);
+    // Cargar ruta inicial detectando si regresamos de OAuth
+    let initialHash = window.location.hash.replace('#', '');
+    if (initialHash.includes('access_token=') || initialHash.includes('error=')) {
+      setTimeout(() => {
+        window.history.replaceState(null, '', window.location.pathname + '#dashboard');
+      }, 500);
+      initialHash = 'dashboard';
+    }
+
+    this.navigate(initialHash || 'dashboard', false);
   }
 
   async navigate(routeName, updateHash = true) {

@@ -13,8 +13,8 @@ export const CONFIG = {
   },
   // Default demo / public placeholder (user can easily change it in the Settings panel)
   DEFAULT_SUPABASE: {
-    URL: '',
-    ANON_KEY: ''
+    URL: 'https://zcgikmhztslegzacfpvl.supabase.co',
+    ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjZ2lrbWh6dHNsZWd6YWNmcHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NTA0NTEsImV4cCI6MjEwNzUyNjQ1MX0.gF3OXVto5O8GDKGTTV_LgcBhc8jKzkueglfv-0Ke4Y0'
   },
   SYNC: {
     HEARTBEAT_INTERVAL_MS: 30000,
