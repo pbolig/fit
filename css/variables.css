@@ -1,0 +1,68 @@
+/* ==============================================================================
+   FITPULSE DESIGN SYSTEM - VARIABLES & TOKENS
+   Paleta obsidian premium, glassmorphism y acentos atléticos de alta energía
+   ============================================================================== */
+
+:root {
+  /* Fondos Base (Obsidian Dark Space) */
+  --bg-app: #080c14;
+  --bg-surface: #0f1726;
+  --bg-surface-elevated: #162238;
+  --bg-surface-translucent: rgba(18, 27, 44, 0.72);
+  --bg-glass: rgba(22, 34, 56, 0.55);
+  --bg-glass-card: rgba(22, 34, 56, 0.65);
+  --bg-glass-input: rgba(15, 23, 42, 0.6);
+
+  /* Bordes & Glass Refraction */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-glass: rgba(255, 255, 255, 0.12);
+  --border-glow: rgba(0, 242, 254, 0.35);
+
+  /* Acentos de Alta Energía (Neon & Athletic Performance) */
+  --accent-cyan: #00f2fe;
+  --accent-cyan-hover: #4facfe;
+  --accent-blue: #38bdf8;
+  --accent-emerald: #10b981;
+  --accent-emerald-glow: rgba(16, 185, 129, 0.25);
+  --accent-coral: #ff5e62;
+  --accent-amber: #f59e0b;
+  --accent-violet: #8b5cf6;
+  --accent-gold: #f6d365;
+
+  /* Gradientes Dinámicos */
+  --grad-primary: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  --grad-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --grad-fire: linear-gradient(135deg, #ff5e62 0%, #ff9966 100%);
+  --grad-strength: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  --grad-gold: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+  --grad-dark-card: linear-gradient(145deg, rgba(26, 38, 64, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);
+
+  /* Tipografía & Textos */
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --text-main: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #0b0f17;
+
+  /* Sombras Profundas y Efectos Neón */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-glow-cyan: 0 0 24px rgba(0, 242, 254, 0.25);
+  --shadow-glow-emerald: 0 0 24px rgba(16, 185, 129, 0.25);
+
+  /* Radios */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  /* Transiciones */
+  --trans-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --trans-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --trans-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}

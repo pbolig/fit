@@ -1,0 +1,18 @@
+{
+  "name": "FitPulse - Entrenamiento & Biometría",
+  "short_name": "FitPulse",
+  "description": "Seguimiento integral de entrenamiento físico, biometría, 1RM y sincronización silenciosa",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#080c14",
+  "theme_color": "#00f2fe",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23080c14'/><path d='M50 15 L78 50 L55 50 L65 85 L28 45 L48 45 Z' fill='%2300f2fe'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

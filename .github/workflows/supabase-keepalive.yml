@@ -1,0 +1,45 @@
+name: Supabase Keep-Alive Cron
+
+# Supabase free-tier projects are paused automatically after 7 days of inactivity.
+# This workflow runs a lightweight ping every 3 days to keep the database active and responsive.
+on:
+  schedule:
+    # Runs at 04:00 UTC every 3 days (Monday, Thursday, etc.)
+    - cron: '0 4 */3 * *'
+  workflow_dispatch: # Allows manual trigger anytime from GitHub Actions tab
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database Endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::warning ::SUPABASE_URL or SUPABASE_ANON_KEY secret is not set in repository settings. Set these secrets in GitHub Repo -> Settings -> Secrets and variables -> Actions to keep Supabase awake."
+            exit 0
+          fi
+
+          # Strip trailing slash if present
+          CLEAN_URL="${SUPABASE_URL%/}"
+          
+          echo "Sending keep-alive ping to Supabase REST endpoint: ${CLEAN_URL}/rest/v1/"
+          
+          # Ping the health / REST root endpoint
+          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" \
+            -X GET "${CLEAN_URL}/rest/v1/profiles?select=count&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+
+          echo "Supabase HTTP response code: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            echo "Supabase ping successful! Database is active and healthy."
+          elif [ "$HTTP_STATUS" -eq 404 ] || [ "$HTTP_STATUS" -eq 401 ]; then
+            # Even if table doesn't exist yet, hitting the API wakes the project
+            echo "Supabase endpoint reached (HTTP $HTTP_STATUS). Database instance is awake."
+          else
+            echo "::notice ::Supabase returned HTTP $HTTP_STATUS. Raw response: $(cat response.json 2>/dev/null || echo 'No body')"
+          fi
