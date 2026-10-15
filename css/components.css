@@ -332,32 +332,97 @@ label {
   animation: spin 0.8s linear infinite;
 }
 
-/* --- MODALS --- */
+/* --- UTILITIES & MODALS --- */
+.hidden,
+.modal-backdrop.hidden {
+  display: none !important;
+}
+
 .modal-backdrop {
   position: fixed;
-  inset: 0;
-  background: rgba(4, 7, 14, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(4, 7, 14, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 10000;
   padding: 1.5rem;
   animation: fadeIn 0.2s ease-out;
 }
 
-.modal-card {
-  background: #111a2e;
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-xl);
+.modal-card,
+.modal-dialog {
+  background: #0d1527;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-xl, 18px);
   width: 100%;
   max-width: 680px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95);
   overflow: hidden;
+  margin: auto;
+}
+
+/* --- FORM CONTROLS & INPUTS --- */
+.form-control {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md, 8px);
+  padding: 0.72rem 1rem;
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  transition: all 0.2s ease;
+  color-scheme: dark;
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.22);
+  background: rgba(15, 23, 42, 0.98);
+}
+
+.form-control::placeholder {
+  color: rgba(148, 163, 184, 0.55);
+}
+
+select.form-control {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 16px;
+  padding-right: 2.5rem;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+select.form-control option {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 10px 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 0.45rem;
+  letter-spacing: 0.02em;
 }
 
 .modal-card.modal-sm {

@@ -274,16 +274,17 @@ export const HistoryView = {
     }
 
     // Eliminar sesión
-    container.addEventListener('click', async (e) => {
-      const delBtn = e.target.closest('.btn-delete-history');
-      if (delBtn) {
-        const workoutId = delBtn.getAttribute('data-workout-id');
-        if (confirm('¿Deseas eliminar este registro de entrenamiento?')) {
+    container.querySelectorAll('.btn-delete-history').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const workoutId = btn.getAttribute('data-workout-id');
+        if (confirm('¿Deseas eliminar este registro de entrenamiento? Se borrará de tus actividades y estadísticas.')) {
           await workoutService.deleteWorkout(workoutId);
           Toast.info('Entrenamiento eliminado.');
           this.render(container);
         }
-      }
+      });
     });
   }
 };

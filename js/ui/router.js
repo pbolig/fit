@@ -9,6 +9,11 @@ import { WorkoutView } from './views/workoutView.js';
 import { HistoryView } from './views/historyView.js';
 import { CatalogView } from './views/catalogView.js';
 import { SettingsView } from './views/settingsView.js';
+import { AuthGateView } from './views/authGateView.js';
+import { SuperAdminView } from './views/superAdminView.js';
+import { TrainerHubView } from './views/trainerHubView.js';
+import { LiveRoomAthleteView } from './views/liveRoomAthleteView.js';
+import { authService } from '../services/authService.js';
 
 class Router {
   constructor() {
@@ -18,7 +23,10 @@ class Router {
       workout: WorkoutView,
       history: HistoryView,
       catalog: CatalogView,
-      settings: SettingsView
+      settings: SettingsView,
+      admin: SuperAdminView,
+      'trainer-hub': TrainerHubView,
+      classes: LiveRoomAthleteView
     };
     this.currentView = null;
     this.container = null;
@@ -26,6 +34,16 @@ class Router {
 
   init(containerElement) {
     this.container = containerElement;
+
+    // Escuchar cambios de autenticación
+    window.addEventListener('fitpulse:auth-changed', (e) => {
+      const user = e.detail?.user;
+      if (user) {
+        this.navigate('dashboard', true);
+      } else {
+        this.navigate('login', false);
+      }
+    });
 
     window.addEventListener('hashchange', () => {
       let hash = window.location.hash.replace('#', '') || 'dashboard';
@@ -48,6 +66,19 @@ class Router {
   }
 
   async navigate(routeName, updateHash = true) {
+    // 1. Verificar autenticación obligatoria
+    if (!authService.isAuthenticated()) {
+      document.body.classList.add('auth-locked');
+      if (this.container) {
+        this.container.innerHTML = '';
+        this.currentView = 'login';
+        AuthGateView.render(this.container);
+      }
+      return;
+    }
+
+    document.body.classList.remove('auth-locked');
+
     const targetRoute = this.routes[routeName] ? routeName : 'dashboard';
 
     if (updateHash) {

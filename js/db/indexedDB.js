@@ -4,7 +4,7 @@
 // ==============================================================================
 
 const DB_NAME = 'FitPulse_DB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 class LocalDatabase {
   constructor() {
@@ -55,6 +55,27 @@ class LocalDatabase {
         // Configuración y credenciales locales
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
+        }
+
+        // Salas y Clases de Entrenamiento de Entrenador
+        if (!db.objectStoreNames.contains('classes')) {
+          const classStore = db.createObjectStore('classes', { keyPath: 'id' });
+          classStore.createIndex('trainer_id', 'trainer_id', { unique: false });
+          classStore.createIndex('scheduled_at', 'scheduled_at', { unique: false });
+          classStore.createIndex('status', 'status', { unique: false });
+        }
+
+        // Asistentes y Alumnos de cada Clase (Presenciales y Remotos)
+        if (!db.objectStoreNames.contains('class_attendees')) {
+          const attStore = db.createObjectStore('class_attendees', { keyPath: 'id' });
+          attStore.createIndex('class_id', 'class_id', { unique: false });
+          attStore.createIndex('user_id', 'user_id', { unique: false });
+          attStore.createIndex('status', 'status', { unique: false });
+        }
+
+        // Asignación de Roles por Superusuario
+        if (!db.objectStoreNames.contains('user_roles')) {
+          db.createObjectStore('user_roles', { keyPath: 'user_id' });
         }
       };
 

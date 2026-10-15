@@ -8,6 +8,7 @@ import { workoutService } from '../../services/workoutService.js';
 import { Biometrics } from '../../services/biometrics.js';
 import { authService } from '../../services/authService.js';
 import { router } from '../router.js';
+import { Toast } from '../toast.js';
 
 export const DashboardView = {
   async render(container) {
@@ -48,16 +49,49 @@ export const DashboardView = {
 
         <div class="hero-actions">
           ${activeWorkout ? `
-            <button id="btn-resume-workout" class="btn btn-warning btn-glow btn-lg">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <span>Continuar Sesión Activa</span>
-            </button>
+            <div class="active-workout-banner-actions" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+              <button id="btn-resume-workout" class="btn btn-warning btn-glow btn-lg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Continuar Sesión Activa</span>
+              </button>
+              <button id="btn-discard-active-workout" class="btn btn-outline-danger" title="Cancelar y descartar la sesión en curso">
+                <span>🗑️ Descartar</span>
+              </button>
+            </div>
           ` : `
             <button id="btn-start-quick-workout" class="btn btn-primary btn-glow btn-lg">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
               <span>Iniciar Entrenamiento</span>
             </button>
           `}
+        </div>
+      </div>
+
+      <!-- BANNER DE SALAS EN VIVO Y HUB ENTRENADOR -->
+      <div class="card glass-card" style="margin-bottom: 24px; padding: 18px 24px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.7) 100%); border-left: 4px solid var(--color-primary-light, #38bdf8); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 28px; background: rgba(56, 189, 248, 0.15); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">🏛️</div>
+          <div>
+            <h3 style="margin: 0 0 3px; font-size: 16px; font-weight: 700;">Salas de Entrenamiento en Vivo</h3>
+            <p style="margin: 0; font-size: 13px; color: var(--color-text-muted);">
+              Asiste presencialmente o en remoto con videocámara para seguir las rutinas de tu entrenador.
+            </p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <a href="#classes" class="btn btn-secondary btn-sm">
+            <span>Ver Salas ➔</span>
+          </a>
+          ${(await authService.isTrainer()) ? `
+            <a href="#trainer-hub" class="btn btn-primary btn-sm btn-glow">
+              <span>⚡ Hub Entrenador</span>
+            </a>
+          ` : ''}
+          ${authService.isSuperAdmin() ? `
+            <a href="#admin" class="btn btn-primary btn-sm" style="background: rgba(168, 85, 247, 0.25); border-color: #a855f7; color: #f3e8ff;">
+              <span>👑 Superadmin</span>
+            </a>
+          ` : ''}
         </div>
       </div>
 
@@ -193,6 +227,9 @@ export const DashboardView = {
                   </div>
                 ` : ''}
               </div>
+              <button class="btn-icon-danger btn-delete-dashboard-workout" data-workout-id="${w.id}" title="Eliminar este entrenamiento">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
             </div>
           `).join('')}
         </div>
@@ -207,7 +244,6 @@ export const DashboardView = {
     const startQuickBtn = container.querySelector('#btn-start-quick-workout');
     if (startQuickBtn) {
       startQuickBtn.addEventListener('click', () => {
-        workoutService.startWorkout('Sesión de Fuerza y Rendimiento', 'Fuerza');
         router.navigate('workout');
       });
     }
@@ -219,10 +255,20 @@ export const DashboardView = {
       });
     }
 
+    const discardActiveBtn = container.querySelector('#btn-discard-active-workout');
+    if (discardActiveBtn) {
+      discardActiveBtn.addEventListener('click', () => {
+        if (confirm('¿Estás seguro de que deseas descartar la sesión en curso? No se guardará ningún registro.')) {
+          workoutService.discardActiveWorkout();
+          Toast.info('Sesión activa descartada.');
+          this.render(container);
+        }
+      });
+    }
+
     const emptyStartBtn = container.querySelector('#btn-empty-start');
     if (emptyStartBtn) {
       emptyStartBtn.addEventListener('click', () => {
-        workoutService.startWorkout('Sesión Inicial FitPulse', 'Fuerza');
         router.navigate('workout');
       });
     }
@@ -236,5 +282,19 @@ export const DashboardView = {
     if (viewAllHistory) {
       viewAllHistory.addEventListener('click', () => router.navigate('history'));
     }
+
+    // Eliminar entrenamiento desde la lista del dashboard
+    container.querySelectorAll('.btn-delete-dashboard-workout').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const workoutId = btn.getAttribute('data-workout-id');
+        if (confirm('¿Deseas eliminar este registro de entrenamiento? Se borrará de tus actividades y estadísticas.')) {
+          await workoutService.deleteWorkout(workoutId);
+          Toast.info('Entrenamiento eliminado.');
+          this.render(container);
+        }
+      });
+    });
   }
 };

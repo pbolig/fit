@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     email TEXT,
     full_name TEXT,
     avatar_url TEXT,
+    role TEXT DEFAULT 'athlete' CHECK (role IN ('athlete', 'trainer', 'superadmin')),
     
     -- Datos biométricos primarios
     sex TEXT CHECK (sex IN ('male', 'female', 'other')) DEFAULT 'male',
@@ -192,3 +193,51 @@ DROP TRIGGER IF EXISTS tr_workout_exercises_updated_at ON public.workout_exercis
 CREATE TRIGGER tr_workout_exercises_updated_at
     BEFORE UPDATE ON public.workout_exercises
     FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ==============================================================================
+-- 8. TABLA: TRAINING_ROOMS (Salas y Clases de Entrenamiento del Entrenador)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.training_rooms (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trainer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    trainer_name TEXT NOT NULL,
+    title TEXT NOT NULL,
+    category TEXT DEFAULT 'Fuerza',
+    scheduled_at TIMESTAMPTZ NOT NULL,
+    duration_minutes INTEGER DEFAULT 60,
+    max_capacity INTEGER DEFAULT 20,
+    status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'waiting_room', 'live', 'completed', 'cancelled')),
+    routine_config JSONB DEFAULT '{}'::jsonb,
+    live_state JSONB DEFAULT '{}'::jsonb,
+    summary_stats JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+ALTER TABLE public.training_rooms ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can view training rooms" ON public.training_rooms FOR SELECT USING (true);
+CREATE POLICY "Trainers can manage their training rooms" ON public.training_rooms FOR ALL USING (auth.uid() = trainer_id);
+
+-- ==============================================================================
+-- 9. TABLA: CLASS_ATTENDEES (Asistentes de la Clase: Presenciales y Remotos)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.class_attendees (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    class_id UUID NOT NULL REFERENCES public.training_rooms(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_name TEXT NOT NULL,
+    user_email TEXT,
+    user_avatar TEXT,
+    mode TEXT NOT NULL CHECK (mode IN ('in_person', 'remote')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'admitted', 'rejected', 'completed')),
+    camera_active BOOLEAN DEFAULT false,
+    admitted_at TIMESTAMPTZ,
+    stats JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+ALTER TABLE public.class_attendees ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can view attendees" ON public.class_attendees FOR SELECT USING (true);
+CREATE POLICY "Users can join rooms" ON public.class_attendees FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users and trainers can update attendees" ON public.class_attendees FOR UPDATE USING (true);
+CREATE POLICY "Users and trainers can remove attendees" ON public.class_attendees FOR DELETE USING (true);

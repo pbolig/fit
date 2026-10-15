@@ -8,6 +8,7 @@ import { localDB } from './db/indexedDB.js';
 import { syncManager, SyncStatus } from './db/syncManager.js';
 import { authService } from './services/authService.js';
 import { workoutService } from './services/workoutService.js';
+import { exerciseCatalogService } from './services/exerciseCatalog.js';
 import { router } from './ui/router.js';
 import { Toast } from './ui/toast.js';
 
@@ -19,7 +20,10 @@ class App {
       // 1. Inicializar base de datos local IndexedDB
       await localDB.init();
 
-      // 2. Inicializar servicio de autenticación
+      // 2. Inicializar catálogo reactivo de ejercicios y ritmos
+      await exerciseCatalogService.init();
+
+      // 3. Inicializar servicio de autenticación
       await authService.init();
 
       // 3. Inicializar sincronizador silencioso en segundo plano
@@ -43,9 +47,12 @@ class App {
     const syncBadge = document.getElementById('header-sync-status');
     const userAvatar = document.getElementById('header-user-avatar');
     const userName = document.getElementById('header-user-name');
+    const userRoleLabel = document.querySelector('.user-role-label');
+    const navAdmin = document.getElementById('nav-admin');
+    const navTrainer = document.getElementById('nav-trainer-hub');
 
-    // Actualizar indicador de usuario
-    const updateUserDisplay = (user) => {
+    // Actualizar indicador de usuario y navegación según permisos
+    const updateUserDisplay = async (user) => {
       if (userName) userName.textContent = user?.name || 'Atleta Local';
       if (userAvatar) {
         if (user?.avatar) {
@@ -54,10 +61,40 @@ class App {
           userAvatar.innerHTML = `<span>🏋️</span>`;
         }
       }
+
+      const role = await authService.getRole();
+      const isSuper = authService.isSuperAdmin();
+      const isTrainer = await authService.isTrainer();
+
+      if (userRoleLabel) {
+        if (isSuper) {
+          userRoleLabel.textContent = '👑 Superadmin';
+          userRoleLabel.style.color = '#c084fc';
+        } else if (isTrainer) {
+          userRoleLabel.textContent = '⚡ Entrenador Pro';
+          userRoleLabel.style.color = '#34d399';
+        } else {
+          userRoleLabel.textContent = '🏋️ Atleta FitPulse';
+          userRoleLabel.style.color = 'var(--color-text-muted)';
+        }
+      }
+
+      // Control visual sutil de pestañas según rol
+      if (navAdmin) {
+        navAdmin.style.display = isSuper ? 'flex' : 'none';
+      }
+      if (navTrainer) {
+        navTrainer.style.display = (isTrainer || isSuper) ? 'flex' : 'none';
+      }
     };
 
     updateUserDisplay(authService.getCurrentUser());
     authService.onAuthStateChanged((user) => updateUserDisplay(user));
+    window.addEventListener('fitpulse:room-event', (e) => {
+      if (e.detail?.action === 'USER_ROLE_CHANGED') {
+        updateUserDisplay(authService.getCurrentUser());
+      }
+    });
 
     // Escuchar eventos de sincronización silenciosa
     window.addEventListener('fitpulse:sync-status', (e) => {

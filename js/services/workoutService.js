@@ -9,6 +9,7 @@ import { syncManager } from '../db/syncManager.js';
 import { authService } from './authService.js';
 import { Biometrics } from './biometrics.js';
 import { EXERCISE_CATALOG } from './exerciseCatalog.js';
+import { generateUUID, isValidUUID } from '../config.js';
 
 class WorkoutService {
   constructor() {
@@ -127,7 +128,7 @@ class WorkoutService {
   async logBodyMetric(metricData) {
     const user = authService.getCurrentUser();
     const metric = {
-      id: 'metric_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      id: generateUUID(),
       user_id: user ? user.id : 'local_default',
       date: metricData.date || new Date().toISOString().split('T')[0],
       weight_kg: parseFloat(metricData.weight_kg),
@@ -156,7 +157,7 @@ class WorkoutService {
   startWorkout(title = 'Entrenamiento del Día', category = 'Fuerza') {
     const user = authService.getCurrentUser();
     this.activeWorkout = {
-      id: 'workout_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      id: generateUUID(),
       user_id: user ? user.id : 'local_default',
       title,
       category,
@@ -228,7 +229,7 @@ class WorkoutService {
     if (!catalogEx) return null;
 
     const workoutExercise = {
-      id: 'we_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      id: generateUUID(),
       workout_id: this.activeWorkout.id,
       exercise_id: catalogEx.id,
       exercise_name: catalogEx.name,
@@ -432,7 +433,16 @@ class WorkoutService {
 
   async getAllWorkouts() {
     const workouts = await localDB.getAll('workouts');
-    return workouts.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+    // Filtrar y purgar registros corruptos sin start_time de pruebas anteriores
+    const valid = [];
+    for (const w of workouts) {
+      if (!w || !w.id || !w.start_time) {
+        if (w?.id) await localDB.delete('workouts', w.id);
+      } else {
+        valid.push(w);
+      }
+    }
+    return valid.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
   }
 
   async getWorkoutWithExercises(workoutId) {
@@ -445,8 +455,35 @@ class WorkoutService {
   }
 
   async deleteWorkout(workoutId) {
+    if (this.activeWorkout && this.activeWorkout.id === workoutId) {
+      this.discardActiveWorkout();
+    }
+    
+    // 1. Eliminar la sesión de IndexedDB local
     await localDB.delete('workouts', workoutId);
-    await syncManager.saveAndQueue('workouts', 'workout_sessions', { id: workoutId }, 'DELETE');
+    
+    // 2. Eliminar también todos los ejercicios asociados a esta sesión en IndexedDB
+    try {
+      const allExercises = await localDB.getAll('workout_exercises');
+      const workoutExercises = allExercises.filter((e) => e.workout_id === workoutId);
+      for (const we of workoutExercises) {
+        await localDB.delete('workout_exercises', we.id);
+        if (isValidUUID(we.id)) {
+          await localDB.enqueueSync('workout_exercises', 'DELETE', { id: we.id });
+        }
+      }
+    } catch (e) {
+      console.warn('Error al limpiar ejercicios de la sesión eliminada:', e);
+    }
+
+    // 3. Encolar borrado remoto sólo si es UUID válido (si era ID local nunca existió en Supabase)
+    if (isValidUUID(workoutId)) {
+      await localDB.enqueueSync('workout_sessions', 'DELETE', { id: workoutId });
+      if (navigator.onLine && !syncManager.isSyncing) {
+        syncManager.syncNow().catch((err) => console.warn('Sync delete err:', err));
+      }
+    }
+
     window.dispatchEvent(new CustomEvent('fitpulse:workout-deleted', { detail: { id: workoutId } }));
   }
 

@@ -18,8 +18,25 @@ class ToastSystem {
     }
   }
 
-  show({ title, message, type = 'info', duration = 4000, icon = null }) {
+  show(opts, maybeType = 'info') {
     this.init();
+
+    let title = '';
+    let message = '';
+    let type = 'info';
+    let duration = 4000;
+    let icon = null;
+
+    if (typeof opts === 'string') {
+      message = opts;
+      type = maybeType || 'info';
+    } else if (opts && typeof opts === 'object') {
+      title = opts.title || '';
+      message = opts.message || '';
+      type = opts.type || 'info';
+      duration = opts.duration !== undefined ? opts.duration : 4000;
+      icon = opts.icon || null;
+    }
 
     const toast = document.createElement('div');
     toast.className = `toast-item toast-${type}`;

@@ -2,7 +2,7 @@
 // FITPULSE - SERVICE WORKER (OFFLINE PWA CACHE)
 // ==============================================================================
 
-const CACHE_NAME = 'fitpulse-v1.0.2';
+const CACHE_NAME = 'fitpulse-v1.1.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -21,15 +21,22 @@ const ASSETS_TO_CACHE = [
   './js/services/biometrics.js',
   './js/services/exerciseCatalog.js',
   './js/services/workoutService.js',
+  './js/services/routineService.js',
+  './js/services/classRoomService.js',
   './js/ui/router.js',
   './js/ui/toast.js',
   './js/ui/charts.js',
+  './js/ui/sound.js',
+  './js/ui/views/authGateView.js',
   './js/ui/views/dashboardView.js',
   './js/ui/views/profileView.js',
   './js/ui/views/workoutView.js',
   './js/ui/views/historyView.js',
   './js/ui/views/catalogView.js',
-  './js/ui/views/settingsView.js'
+  './js/ui/views/settingsView.js',
+  './js/ui/views/superAdminView.js',
+  './js/ui/views/trainerHubView.js',
+  './js/ui/views/liveRoomAthleteView.js'
 ];
 
 self.addEventListener('install', (event) => {

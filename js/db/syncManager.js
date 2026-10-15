@@ -6,7 +6,7 @@
 
 import { localDB } from './indexedDB.js';
 import { SupabaseManager } from './supabaseClient.js';
-import { CONFIG } from '../config.js';
+import { CONFIG, isValidUUID } from '../config.js';
 
 export const SyncStatus = {
   SYNCED: 'synced',
@@ -68,8 +68,14 @@ class SyncManager {
    * Guarda un cambio en la base de datos local y lo encola para sincronizar
    */
   async saveAndQueue(localStore, supabaseTable, data, action = 'UPSERT') {
-    // 1. Guardar inmediatamente en IndexedDB local
-    await localDB.put(localStore, data);
+    // 1. Aplicar en IndexedDB local
+    if (action === 'DELETE') {
+      if (data?.id) {
+        await localDB.delete(localStore, data.id);
+      }
+    } else {
+      await localDB.put(localStore, data);
+    }
 
     // 2. Encolar mutación
     const queueItem = await localDB.enqueueSync(supabaseTable, action, data);
@@ -128,7 +134,18 @@ class SyncManager {
 
       for (const item of pendingItems) {
         try {
-          if (item.action === 'UPSERT') {
+          if (item.action === 'DELETE') {
+            // Si la tabla espera un UUID (workout_sessions, workout_exercises, body_metrics_log)
+            // y el ID no es un UUID válido (ej. "workout_1792..."), nunca existió en Supabase.
+            // Omitimos la petición remota para evitar error 400 de Postgres.
+            if (item.table !== 'profiles' && item.data?.id && !isValidUUID(item.data.id)) {
+              console.log(`[Sync] Omitiendo DELETE de id no-UUID ${item.data.id} en ${item.table} (solo existía en local)`);
+              await localDB.removeSyncItem(item.id);
+              continue;
+            }
+            const { error } = await client.from(item.table).delete().eq('id', item.data.id);
+            if (error) throw error;
+          } else if (item.action === 'UPSERT') {
             // Asegurar que user_id coincida con la sesión actual
             const payload = { ...item.data };
             if (!payload.user_id && item.table !== 'profiles') {
@@ -138,10 +155,14 @@ class SyncManager {
               payload.id = session.user.id;
             }
 
+            // Si es un registro con ID no-UUID incompatible con tablas UUID de Supabase, descartar de la cola
+            if (item.table !== 'profiles' && payload.id && !isValidUUID(payload.id)) {
+              console.warn(`[Sync] Descartando item con id no-UUID incompatible (${payload.id}) para tabla ${item.table}`);
+              await localDB.removeSyncItem(item.id);
+              continue;
+            }
+
             const { error } = await client.from(item.table).upsert(payload);
-            if (error) throw error;
-          } else if (item.action === 'DELETE') {
-            const { error } = await client.from(item.table).delete().eq('id', item.data.id);
             if (error) throw error;
           }
 
@@ -149,8 +170,27 @@ class SyncManager {
           await localDB.removeSyncItem(item.id);
         } catch (itemErr) {
           console.warn(`Error al sincronizar item ${item.id} en ${item.table}:`, itemErr.message);
-          await localDB.updateSyncItemAttempts(item.id, (item.attempts || 0) + 1);
-          // Si es un error de autenticación o red, abortar el resto para no saturar
+
+          // Si es un error fatal de sintaxis de base de datos (ej. invalid input syntax for type uuid),
+          // tabla que no existe aún en Supabase (404 / 42P01), o ha fallado repetidamente,
+          // eliminarlo de la cola para que no bloquee la sincronización
+          if (
+            itemErr.message?.includes('invalid input syntax for type uuid') ||
+            itemErr.message?.includes('invalid input syntax') ||
+            itemErr.status === 404 ||
+            itemErr.code === '42P01' ||
+            itemErr.code === 'PGRST204' ||
+            itemErr.message?.includes('does not exist') ||
+            itemErr.message?.includes('relation') ||
+            (item.attempts && item.attempts >= 3)
+          ) {
+            console.warn(`[Sync] Descartando item ${item.id} de la cola (${itemErr.message || 'tabla remota no disponible'}).`);
+            await localDB.removeSyncItem(item.id);
+          } else {
+            await localDB.updateSyncItemAttempts(item.id, (item.attempts || 0) + 1);
+          }
+
+          // Si es un error de desconexión, pausar el ciclo
           if (!navigator.onLine) break;
         }
       }

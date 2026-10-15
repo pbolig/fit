@@ -1,10 +1,12 @@
 // ==============================================================================
 // FITPULSE - EXERCISE CATALOG & MET VALUES
 // Catálogo completo con valores de MET (Compendio de Actividades Físicas de Ainsworth),
-// músculos principales, equipamiento y recomendaciones de ejecución.
+// músculos principales, equipamiento, ritmos, enlaces de video y recomendaciones.
 // ==============================================================================
 
-export const EXERCISE_CATALOG = [
+import { localDB } from '../db/indexedDB.js';
+
+const DEFAULT_EXERCISES = [
   // --- PECHO ---
   {
     id: 'bench_press_barbell',
@@ -428,11 +430,105 @@ export const EXERCISE_CATALOG = [
     equipment: 'Rodillo de Espuma',
     metValue: 2.5,
     tips: 'Rueda lentamente y sostén la presión en los puntos gatillo tensos durante 20 a 30 segundos.'
+  },
+
+  // --- BAILE & RITMOS ---
+  {
+    id: 'dance_salsa_cubana',
+    name: 'Salsa Cubana & Estilo Casino',
+    category: 'Baile & Ritmos',
+    subcategory: 'Salsa',
+    type: 'duration',
+    primaryMuscle: 'Core, Tren Inferior y Cardio Aeróbico',
+    secondaryMuscles: ['Glúteos', 'Gemelos', 'Coordinación Dinámica'],
+    equipment: 'Calzado Cómodo',
+    metValue: 6.5,
+    youtube_url: 'https://www.youtube.com/watch?v=kYv_3jZ9i-w',
+    tips: 'Paso básico guapea en tiempo 1-2-3 (pausa 4) y 5-6-7 (pausa 8). Mantén las rodillas suaves y el torso erguido.'
+  },
+  {
+    id: 'dance_bachata_sensual',
+    name: 'Bachata Sensual & Tradicional',
+    category: 'Baile & Ritmos',
+    subcategory: 'Bachata',
+    type: 'duration',
+    primaryMuscle: 'Cadera, Glúteos y Disociación Corporal',
+    secondaryMuscles: ['Cuádriceps', 'Core', 'Espalda Baja'],
+    equipment: 'Calzado Cómodo',
+    metValue: 5.8,
+    youtube_url: 'https://www.youtube.com/watch?v=F_fPzb1324g',
+    tips: 'Paso lateral 1-2-3 con tap y elevación de cadera en el tiempo 4. Fluidez y disociación en ondas corporales.'
+  },
+  {
+    id: 'dance_merengue_latino',
+    name: 'Ritmos Latinos & Merengue Explosivo',
+    category: 'Baile & Ritmos',
+    subcategory: 'Ritmos Latinos',
+    type: 'duration',
+    primaryMuscle: 'Resistencia Aeróbica, Gemelos y Cadera',
+    secondaryMuscles: ['Cuádriceps', 'Hombros', 'Core'],
+    equipment: 'Calzado Deportivo',
+    metValue: 6.8,
+    youtube_url: 'https://www.youtube.com/watch?v=8q-pT28Lw1Y',
+    tips: 'Marcha en 2 tiempos con movimiento pendular de cadera hacia la pierna de apoyo. Excelente quema calórica.'
+  },
+  {
+    id: 'dance_reggaeton_urbano',
+    name: 'Reggaetón & Street Urbano Dance',
+    category: 'Baile & Ritmos',
+    subcategory: 'Reggaetón / Urbano',
+    type: 'duration',
+    primaryMuscle: 'Cuádriceps, Glúteos y Potencia de Core',
+    secondaryMuscles: ['Isquiosurales', 'Pectorales', 'Hombros'],
+    equipment: 'Calzado Deportivo',
+    metValue: 7.2,
+    youtube_url: 'https://www.youtube.com/watch?v=V1Pl8CzNzCw',
+    tips: 'Centro de gravedad bajo con flexión continua de rodillas (bounce), aislamiento torácico y cadencia rápida.'
+  },
+  {
+    id: 'dance_zumba_fitness',
+    name: 'Zumba Fitness / Cardio Dance',
+    category: 'Baile & Ritmos',
+    subcategory: 'Zumba',
+    type: 'duration',
+    primaryMuscle: 'Resistencia Cardiorrespiratoria y Full-Body',
+    secondaryMuscles: ['Glúteos', 'Piernas', 'Brazos', 'Core'],
+    equipment: 'Calzado Deportivo y Toalla',
+    metValue: 7.0,
+    youtube_url: 'https://www.youtube.com/watch?v=Q8lD7Y_lYQ0',
+    tips: 'Entrenamiento por intervalos bailados. Alterna picos de alta intensidad aeróbica con secuencias de recuperación.'
+  },
+  {
+    id: 'dance_cumbia_latina',
+    name: 'Cumbia Latina & Pasos de Compás',
+    category: 'Baile & Ritmos',
+    subcategory: 'Ritmos Latinos',
+    type: 'duration',
+    primaryMuscle: 'Coordinación, Tren Inferior y Cintura Escapular',
+    secondaryMuscles: ['Glúteos', 'Gemelos', 'Core'],
+    equipment: 'Calzado Cómodo',
+    metValue: 5.2,
+    youtube_url: 'https://www.youtube.com/watch?v=Yf1gZ_F0fWc',
+    tips: 'Paso repique lateral y cruzado atrás en compás de 2 tiempos con balanceo de brazos y eje centrado.'
+  },
+  {
+    id: 'dance_tango_milonga',
+    name: 'Tango Argentino & Milonga',
+    category: 'Baile & Ritmos',
+    subcategory: 'Tango',
+    type: 'duration',
+    primaryMuscle: 'Equilibrio, Postura Axial y Cadena Posterior',
+    secondaryMuscles: ['Core', 'Glúteos', 'Erectores Espinales'],
+    equipment: 'Calzado con Suela Deslizante',
+    metValue: 4.5,
+    youtube_url: 'https://www.youtube.com/watch?v=J9H6P3eW8mI',
+    tips: 'Caminata en eje con torsión disociada de torso (ocho adelante y ocho atrás). Precisión postural y elegancia.'
   }
 ];
 
 export const CATEGORIES = [
   'Todos',
+  'Baile & Ritmos',
   'Pecho',
   'Espalda',
   'Piernas',
@@ -443,3 +539,158 @@ export const CATEGORIES = [
   'HIIT / Funcional',
   'Movilidad'
 ];
+
+export const DANCE_SUBCATEGORIES = [
+  'Todos',
+  'Salsa',
+  'Bachata',
+  'Ritmos Latinos',
+  'Merengue',
+  'Reggaetón / Urbano',
+  'Zumba',
+  'Cumbia',
+  'Tango'
+];
+
+// Array dinámico exportado con referencia estable para todos los módulos
+export const EXERCISE_CATALOG = [...DEFAULT_EXERCISES];
+
+/**
+ * Extrae el ID de 11 caracteres de cualquier URL de YouTube (estándar, corta, embed o shorts)
+ */
+export function extractYouTubeId(url) {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i;
+  const match = trimmed.match(regExp);
+  return match ? match[1] : null;
+}
+
+/**
+ * Genera la URL para iframe embed de YouTube en modo seguro (youtube-nocookie)
+ */
+export function getYouTubeEmbedUrl(url) {
+  const id = extractYouTubeId(url);
+  return id ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0` : null;
+}
+
+/**
+ * Servicio reactivo y offline-first para gestión completa del Catálogo de Ejercicios y Ritmos
+ * Permite Agregar, Modificar y Quitar actividades con persistencia en IndexedDB local.
+ */
+class ExerciseCatalogService {
+  constructor() {
+    this.isInitialized = false;
+  }
+
+  async init() {
+    if (this.isInitialized) return;
+    try {
+      await localDB.init();
+      const custom = (await localDB.getSetting('fitpulse_custom_exercises')) || [];
+      const deleted = (await localDB.getSetting('fitpulse_deleted_exercises')) || [];
+      const modified = (await localDB.getSetting('fitpulse_modified_exercises')) || {};
+
+      this._rebuildCatalog(custom, deleted, modified);
+      this.isInitialized = true;
+    } catch (e) {
+      console.warn('[ExerciseCatalogService] Error al inicializar catálogo:', e);
+    }
+  }
+
+  _rebuildCatalog(custom = [], deleted = [], modified = {}) {
+    const deletedSet = new Set(deleted);
+
+    // Actividades predeterminadas aplicando modificaciones y omitiendo eliminadas
+    const activeDefaults = DEFAULT_EXERCISES
+      .filter((ex) => !deletedSet.has(ex.id))
+      .map((ex) => {
+        if (modified[ex.id]) {
+          return { ...ex, ...modified[ex.id] };
+        }
+        return { ...ex };
+      });
+
+    // Actividades creadas por el usuario que no hayan sido eliminadas
+    const activeCustom = custom
+      .filter((ex) => !deletedSet.has(ex.id))
+      .map((ex) => {
+        if (modified[ex.id]) {
+          return { ...ex, ...modified[ex.id], isCustom: true };
+        }
+        return { ...ex, isCustom: true };
+      });
+
+    // Mutar el array exportado in-place para que todos los módulos que lo importan tengan los datos actualizados
+    EXERCISE_CATALOG.length = 0;
+    EXERCISE_CATALOG.push(...activeCustom, ...activeDefaults);
+  }
+
+  async getAllExercises() {
+    await this.init();
+    return EXERCISE_CATALOG;
+  }
+
+  async getExerciseById(id) {
+    await this.init();
+    return EXERCISE_CATALOG.find((e) => e.id === id) || null;
+  }
+
+  async saveExercise(exerciseData) {
+    await this.init();
+    const custom = (await localDB.getSetting('fitpulse_custom_exercises')) || [];
+    const modified = (await localDB.getSetting('fitpulse_modified_exercises')) || {};
+    const deleted = (await localDB.getSetting('fitpulse_deleted_exercises')) || [];
+
+    const isExistingDefault = DEFAULT_EXERCISES.some((e) => e.id === exerciseData.id);
+    const existingCustomIdx = custom.findIndex((e) => e.id === exerciseData.id);
+
+    if (exerciseData.id && (isExistingDefault || existingCustomIdx >= 0)) {
+      // Modificar existente
+      if (existingCustomIdx >= 0) {
+        custom[existingCustomIdx] = { ...custom[existingCustomIdx], ...exerciseData, updatedAt: new Date().toISOString() };
+        await localDB.setSetting('fitpulse_custom_exercises', custom);
+      } else {
+        modified[exerciseData.id] = { ...(modified[exerciseData.id] || {}), ...exerciseData, updatedAt: new Date().toISOString() };
+        await localDB.setSetting('fitpulse_modified_exercises', modified);
+      }
+    } else {
+      // Crear nuevo
+      const newId = exerciseData.id || `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const newActivity = {
+        ...exerciseData,
+        id: newId,
+        isCustom: true,
+        createdAt: new Date().toISOString()
+      };
+      custom.unshift(newActivity);
+      await localDB.setSetting('fitpulse_custom_exercises', custom);
+    }
+
+    this._rebuildCatalog(custom, deleted, modified);
+    return exerciseData;
+  }
+
+  async deleteExercise(exerciseId) {
+    await this.init();
+    const custom = (await localDB.getSetting('fitpulse_custom_exercises')) || [];
+    const modified = (await localDB.getSetting('fitpulse_modified_exercises')) || {};
+    let deleted = (await localDB.getSetting('fitpulse_deleted_exercises')) || [];
+
+    if (!deleted.includes(exerciseId)) {
+      deleted.push(exerciseId);
+      await localDB.setSetting('fitpulse_deleted_exercises', deleted);
+    }
+
+    const updatedCustom = custom.filter((e) => e.id !== exerciseId);
+    if (updatedCustom.length !== custom.length) {
+      await localDB.setSetting('fitpulse_custom_exercises', updatedCustom);
+    }
+
+    this._rebuildCatalog(updatedCustom, deleted, modified);
+    return true;
+  }
+}
+
+export const exerciseCatalogService = new ExerciseCatalogService();
+

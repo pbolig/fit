@@ -10,6 +10,10 @@ import { SupabaseManager } from '../db/supabaseClient.js';
 import { localDB } from '../db/indexedDB.js';
 import { CONFIG } from '../config.js';
 
+export const SUPERADMIN_EMAILS = [
+  'pedro.bolig@gmail.com'
+];
+
 class AuthService {
   constructor() {
     this.currentUser = null;
@@ -34,7 +38,6 @@ class AuthService {
             this.currentUser = this.formatUser(session.user);
             await this.saveLocalUser(this.currentUser);
             this.notifyListeners(this.currentUser);
-            // Disparar sincronización silenciosa
             window.dispatchEvent(new CustomEvent('fitpulse:auth-changed', { detail: { user: this.currentUser } }));
           } else if (event === 'SIGNED_OUT') {
             this.currentUser = null;
@@ -49,51 +52,81 @@ class AuthService {
       }
     }
 
-    // Si no hay usuario de Supabase, recuperar usuario local o inicializar usuario invitado
+    // 2. Si no hay sesión activa en Supabase, verificar si hay un usuario guardado previamente
     if (!this.currentUser) {
       const localSaved = await localDB.getSetting(CONFIG.STORAGE_KEYS.CURRENT_USER);
-      if (localSaved) {
+      if (localSaved && !localSaved.isGuest) {
         this.currentUser = localSaved;
       } else {
-        this.currentUser = this.createDefaultGuestUser();
-        await this.saveLocalUser(this.currentUser);
+        // No permitir acceso sin autenticarse
+        this.currentUser = null;
       }
     }
 
     return this.currentUser;
   }
 
-  createDefaultGuestUser() {
-    return {
-      id: 'local_athlete_' + Date.now().toString(36),
-      email: 'atleta.local@fitpulse.app',
-      name: 'Atleta FitPulse',
-      avatar: '',
-      isGuest: true
-    };
-  }
-
   formatUser(sbUser) {
+    const email = sbUser.email || '';
+    const isSuperAdmin = SUPERADMIN_EMAILS.includes(email.toLowerCase());
     return {
       id: sbUser.id,
-      email: sbUser.email,
-      name: sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || sbUser.email?.split('@')[0] || 'Atleta',
+      email,
+      name: sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || email.split('@')[0] || 'Atleta',
       avatar: sbUser.user_metadata?.avatar_url || sbUser.user_metadata?.picture || '',
+      isSuperAdmin,
+      role: isSuperAdmin ? 'superadmin' : (sbUser.role || 'athlete'),
       isGuest: false
     };
   }
 
   async saveLocalUser(user) {
-    localStorage.setItem(CONFIG.STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-    await localDB.setSetting(CONFIG.STORAGE_KEYS.CURRENT_USER, user);
+    if (user) {
+      localStorage.setItem(CONFIG.STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+      await localDB.setSetting(CONFIG.STORAGE_KEYS.CURRENT_USER, user);
+    } else {
+      localStorage.removeItem(CONFIG.STORAGE_KEYS.CURRENT_USER);
+      await localDB.delete('settings', CONFIG.STORAGE_KEYS.CURRENT_USER);
+    }
   }
 
   getCurrentUser() {
     return this.currentUser;
   }
 
+  isAuthenticated() {
+    return !!(this.currentUser && !this.currentUser.isGuest && this.currentUser.id);
+  }
+
   isAuthenticatedWithSupabase() {
-    return this.currentUser && !this.currentUser.isGuest;
+    return this.isAuthenticated();
+  }
+
+  isSuperAdmin() {
+    if (!this.currentUser || !this.currentUser.email) return false;
+    return SUPERADMIN_EMAILS.includes(this.currentUser.email.toLowerCase());
+  }
+
+  async getRole() {
+    if (this.isSuperAdmin()) return 'superadmin';
+    if (!this.currentUser?.id) return 'athlete';
+
+    try {
+      await localDB.init();
+      const roleRecord = await localDB.get('user_roles', this.currentUser.id);
+      if (roleRecord?.role) {
+        this.currentUser.role = roleRecord.role;
+        return roleRecord.role;
+      }
+    } catch (e) {}
+
+    return this.currentUser.role || 'athlete';
+  }
+
+  async isTrainer() {
+    if (this.isSuperAdmin()) return true;
+    const role = await this.getRole();
+    return role === 'trainer' || role === 'superadmin';
   }
 
   /**
@@ -182,11 +215,11 @@ class AuthService {
       }
     }
 
-    // Volver a modo invitado
-    this.currentUser = this.createDefaultGuestUser();
-    await this.saveLocalUser(this.currentUser);
-    this.notifyListeners(this.currentUser);
-    window.dispatchEvent(new CustomEvent('fitpulse:auth-changed', { detail: { user: this.currentUser } }));
+    // Limpiar usuario activo
+    this.currentUser = null;
+    await this.saveLocalUser(null);
+    this.notifyListeners(null);
+    window.dispatchEvent(new CustomEvent('fitpulse:auth-changed', { detail: { user: null } }));
   }
 
   onAuthStateChanged(callback) {
@@ -204,6 +237,7 @@ class AuthService {
         console.error('Error en listener de auth:', e);
       }
     });
+    window.dispatchEvent(new CustomEvent('fitpulse:auth-changed', { detail: { user } }));
   }
 }
 
