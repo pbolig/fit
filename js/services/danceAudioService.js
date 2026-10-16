@@ -258,52 +258,55 @@ class DanceAudioService {
    * Ejecuta un paso del compás según el ritmo seleccionado
    */
   _playStep(stepIndex) {
-    const ctx = this.getAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
+    if (this.currentMode === 'synth') {
+      const ctx = this.getAudioContext();
+      if (ctx) {
+        const now = ctx.currentTime;
 
-    if (this.activeRhythm === 'bachata') {
-      // Compás de 8 tiempos de Bachata:
-      // Tiempos 0, 1, 2 = 1, 2, 3 (Bongó agudo + Güira + Bajo)
-      // Tiempo 3 = 4 TAP (Slap acentuado + Bajo acentuado)
-      // Tiempos 4, 5, 6 = 5, 6, 7 (Bongó agudo + Güira + Bajo)
-      // Tiempo 7 = 8 TAP (Slap acentuado + Bajo acentuado)
-      const isTap = stepIndex === 3 || stepIndex === 7;
+        if (this.activeRhythm === 'bachata') {
+          // Compás de 8 tiempos de Bachata:
+          // Tiempos 0, 1, 2 = 1, 2, 3 (Bongó agudo + Güira + Bajo)
+          // Tiempo 3 = 4 TAP (Slap acentuado + Bajo acentuado)
+          // Tiempos 4, 5, 6 = 5, 6, 7 (Bongó agudo + Güira + Bajo)
+          // Tiempo 7 = 8 TAP (Slap acentuado + Bajo acentuado)
+          const isTap = stepIndex === 3 || stepIndex === 7;
 
-      if (isTap) {
-        this._triggerPercussion('bongo_slap_tap', now, 1.2);
-        this._triggerPercussion('bass_thump', now, 1.1);
-      } else {
-        this._triggerPercussion('bongo_high', now, 0.9);
-        this._triggerPercussion('guira_scrape', now, 0.7);
-        if (stepIndex === 0 || stepIndex === 2 || stepIndex === 4 || stepIndex === 6) {
-          this._triggerPercussion('bass_thump', now, 0.8);
+          if (isTap) {
+            this._triggerPercussion('bongo_slap_tap', now, 1.25);
+            this._triggerPercussion('bass_thump', now, 1.15);
+          } else {
+            this._triggerPercussion('bongo_high', now, 0.9);
+            this._triggerPercussion('guira_scrape', now, 0.7);
+            if (stepIndex === 0 || stepIndex === 2 || stepIndex === 4 || stepIndex === 6) {
+              this._triggerPercussion('bass_thump', now, 0.8);
+            }
+          }
+
+          // Rasgueo intermedio de contratiempo de güira
+          const halfStepTime = now + (60 / this.bpm / 2);
+          this._triggerPercussion('guira_scrape', halfStepTime, 0.45);
+        } else if (this.activeRhythm === 'salsa') {
+          // Clave 2-3 de salsa y congas
+          const isClave = stepIndex === 0 || stepIndex === 2 || stepIndex === 3 || stepIndex === 5 || stepIndex === 6;
+          if (isClave) this._triggerPercussion('clave', now, 0.85);
+          this._triggerPercussion('bongo_high', now, 0.75);
+          if (stepIndex === 3 || stepIndex === 7) this._triggerPercussion('bass_thump', now, 1.0);
+        } else if (this.activeRhythm === 'merengue') {
+          // Marcha enérgica de merengue
+          this._triggerPercussion('guira_scrape', now, 1.0);
+          if (stepIndex % 2 === 0) this._triggerPercussion('bongo_high', now, 0.9);
+          else this._triggerPercussion('bass_thump', now, 1.1);
+        } else {
+          // Reggaeton / Dembow
+          if (stepIndex === 0 || stepIndex === 4) this._triggerPercussion('bass_thump', now, 1.2);
+          if (stepIndex === 3 || stepIndex === 6) this._triggerPercussion('bongo_slap_tap', now, 1.0);
+          this._triggerPercussion('guira_scrape', now, 0.4);
         }
       }
-
-      // Rasgueo intermedio de contratiempo de güira
-      const halfStepTime = now + (60 / this.bpm / 2);
-      this._triggerPercussion('guira_scrape', halfStepTime, 0.5);
-    } else if (this.activeRhythm === 'salsa') {
-      // Clave 2-3 de salsa y congas
-      const isClave = stepIndex === 0 || stepIndex === 2 || stepIndex === 3 || stepIndex === 5 || stepIndex === 6;
-      if (isClave) this._triggerPercussion('clave', now, 0.8);
-      this._triggerPercussion('bongo_high', now, 0.7);
-      if (stepIndex === 3 || stepIndex === 7) this._triggerPercussion('bass_thump', now, 1.0);
-    } else if (this.activeRhythm === 'merengue') {
-      // Marcha enérgica de merengue
-      this._triggerPercussion('guira_scrape', now, 1.0);
-      if (stepIndex % 2 === 0) this._triggerPercussion('bongo_high', now, 0.9);
-      else this._triggerPercussion('bass_thump', now, 1.1);
-    } else {
-      // Reggaeton / Dembow
-      if (stepIndex === 0 || stepIndex === 4) this._triggerPercussion('bass_thump', now, 1.2);
-      if (stepIndex === 3 || stepIndex === 6) this._triggerPercussion('bongo_slap_tap', now, 1.0);
-      this._triggerPercussion('guira_scrape', now, 0.4);
     }
 
-    // Notificar al oyente del compás visual (1 a 8)
-    const beatNumber = stepIndex + 1;
+    // Notificar al oyente del compás visual (siempre ordenado estrictamente del 1 al 8)
+    const beatNumber = (stepIndex % 8) + 1;
     window.dispatchEvent(new CustomEvent('fitpulse:dance-beat', {
       detail: {
         beatNumber,
@@ -324,31 +327,36 @@ class DanceAudioService {
       this.bpm = DANCE_RHYTHMS[rhythmId].defaultBpm;
     }
 
+    // Cancelar cualquier temporizador de compás en ejecución previa
+    if (this.beatInterval) {
+      clearInterval(this.beatInterval);
+      this.beatInterval = null;
+    }
+
     this.isPlaying = true;
 
     if (this.currentMode === 'synth') {
-      this.stop(); // Limpiar timers previos
-      this.isPlaying = true;
       this.getAudioContext();
-
-      // Duración de cada tiempo de negra según BPM
-      const stepDurationMs = (60 / this.bpm) * 1000;
-      this.currentBeatIndex = 0;
-
-      // Ejecutar primer golpe inmediatamente
-      this._playStep(this.currentBeatIndex);
-
-      this.beatInterval = setInterval(() => {
-        if (!this.isPlaying) return;
-        this.currentBeatIndex = (this.currentBeatIndex + 1) % 8;
-        this._playStep(this.currentBeatIndex);
-      }, stepDurationMs);
     } else if (this.currentMode === 'local_file') {
       if (this.localAudioEl) {
         this.localAudioEl.volume = this.volume;
         this.localAudioEl.play().catch((e) => console.warn('Error al reproducir audio local:', e));
       }
     }
+
+    // Duración de cada tiempo según el BPM del ritmo (ej. 128 BPM = ~468.75ms)
+    const stepDurationMs = (60 / this.bpm) * 1000;
+    this.currentBeatIndex = 0;
+
+    // Disparar inmediatamente el primer tiempo del compás (1)
+    this._playStep(this.currentBeatIndex);
+
+    // Ciclo estricto y ordenado: 1 -> 2 -> 3 -> 4 TAP -> 5 -> 6 -> 7 -> 8 TAP
+    this.beatInterval = setInterval(() => {
+      if (!this.isPlaying) return;
+      this.currentBeatIndex = (this.currentBeatIndex + 1) % 8;
+      this._playStep(this.currentBeatIndex);
+    }, stepDurationMs);
 
     window.dispatchEvent(new CustomEvent('fitpulse:dance-audio-state', {
       detail: { isPlaying: true, mode: this.currentMode, rhythm: this.activeRhythm }

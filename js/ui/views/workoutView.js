@@ -298,22 +298,23 @@ export const WorkoutView = {
 
     this._danceBeatHandler = (e) => {
       const beat = e.detail?.beatNumber || e.detail?.beat;
-      const beatTrack = container.querySelector('#dance-beat-track');
+      const beatTrack = container.querySelector('#dance-beat-track') || document.querySelector('#dance-beat-track');
       if (beatTrack && beat) {
-        const steps = beatTrack.querySelectorAll('.beat-step:not(.beat-divider)');
-        steps.forEach((el, i) => {
-          el.classList.toggle('active-beat', (i + 1) === beat);
+        const steps = beatTrack.querySelectorAll('[data-beat]');
+        steps.forEach((el) => {
+          const b = parseInt(el.getAttribute('data-beat'), 10);
+          el.classList.toggle('active-beat', b === beat);
         });
       }
     };
 
     this._danceStateChangeHandler = (e) => {
       const isPlaying = e.detail?.isPlaying;
-      const soundwave = container.querySelector('#giant-dock-soundwave');
+      const soundwave = container.querySelector('#giant-dock-soundwave') || document.querySelector('#giant-dock-soundwave');
       if (soundwave) {
         soundwave.classList.toggle('is-playing', !!isPlaying);
       }
-      const giantPlayBtn = container.querySelector('#btn-giant-dock-play');
+      const giantPlayBtn = container.querySelector('#btn-giant-dock-play') || document.querySelector('#btn-giant-dock-play');
       if (giantPlayBtn) {
         giantPlayBtn.textContent = isPlaying ? '⏸️' : '▶️';
       }
@@ -322,6 +323,14 @@ export const WorkoutView = {
       if (previewIcon && previewTxt) {
         previewIcon.textContent = isPlaying ? '⏸️' : '▶️';
         previewTxt.textContent = isPlaying ? 'Pausar Prueba' : 'Probar Sonido';
+      }
+
+      // Si el audio se pausa o se detiene, apagar todos los pasos del compás
+      if (!isPlaying) {
+        const beatTrack = container.querySelector('#dance-beat-track') || document.querySelector('#dance-beat-track');
+        if (beatTrack) {
+          beatTrack.querySelectorAll('[data-beat]').forEach((el) => el.classList.remove('active-beat'));
+        }
       }
     };
 
@@ -1286,6 +1295,10 @@ export const WorkoutView = {
     this.activeController.phaseTotalSeconds = durationSeconds;
     this.activeController.isPaused = false;
 
+    // 1. Renderizar la pantalla de la fase primero para montar DOM y oyentes de eventos
+    this.renderActivePhaseScreen(container, workout, profile);
+
+    // 2. Gestionar audio y efectos de sonido en estricta sincronía con la fase
     if (phase === 'prep') {
       Sound.playCountdown();
     } else if (phase === 'work') {
@@ -1293,19 +1306,15 @@ export const WorkoutView = {
       const currentEx = workout?.exercises?.[this.activeController.currentExerciseIdx];
       if (currentEx && (currentEx.category === 'Baile & Ritmos' || workout.category === 'Baile & Ritmos')) {
         const detectedRhythm = this.detectRhythmFromExercise(currentEx);
-        if (danceAudioService.activeRhythm !== detectedRhythm) {
-          danceAudioService.activeRhythm = detectedRhythm;
-          danceAudioService.bpm = (DANCE_RHYTHMS[detectedRhythm] || DANCE_RHYTHMS.bachata).defaultBpm;
-        }
-        if (!danceAudioService.isPlaying) {
-          danceAudioService.play();
-        }
+        danceAudioService.activeRhythm = detectedRhythm;
+        danceAudioService.bpm = (DANCE_RHYTHMS[detectedRhythm] || DANCE_RHYTHMS.bachata).defaultBpm;
+        danceAudioService.stop();
+        danceAudioService.play();
       }
     } else if (phase === 'rest') {
       Sound.playRest();
+      danceAudioService.pause();
     }
-
-    this.renderActivePhaseScreen(container, workout, profile);
 
     // Iniciar temporizador de la fase
     this.activeController.phaseTimer = setInterval(() => {
@@ -1496,15 +1505,15 @@ export const WorkoutView = {
                   </div>
 
                   <div class="dance-beat-track" id="dance-beat-track">
-                    <div class="beat-step beat-1">1</div>
-                    <div class="beat-step beat-2">2</div>
-                    <div class="beat-step beat-3">3</div>
-                    <div class="beat-step beat-tap beat-4">4 TAP</div>
+                    <div class="beat-step beat-1" data-beat="1">1</div>
+                    <div class="beat-step beat-2" data-beat="2">2</div>
+                    <div class="beat-step beat-3" data-beat="3">3</div>
+                    <div class="beat-step beat-tap beat-4" data-beat="4">4 TAP</div>
                     <div class="beat-step beat-divider">·</div>
-                    <div class="beat-step beat-5">5</div>
-                    <div class="beat-step beat-6">6</div>
-                    <div class="beat-step beat-7">7</div>
-                    <div class="beat-step beat-tap beat-8">8 TAP</div>
+                    <div class="beat-step beat-5" data-beat="5">5</div>
+                    <div class="beat-step beat-6" data-beat="6">6</div>
+                    <div class="beat-step beat-7" data-beat="7">7</div>
+                    <div class="beat-step beat-tap beat-8" data-beat="8">8 TAP</div>
                   </div>
                 </div>
 
@@ -1742,16 +1751,6 @@ export const WorkoutView = {
     const digitsElem = container.querySelector('#giant-timer-digits');
     if (digitsElem) {
       digitsElem.textContent = this.formatTimeDigits(seconds);
-    }
-
-    // Animar compás rítmico de 8 tiempos durante la fase de trabajo de baile
-    const beatTrack = container.querySelector('#dance-beat-track');
-    if (beatTrack && this.activeController.phase === 'work') {
-      const elapsed = Math.max(0, (this.activeController.phaseTotalSeconds || 45) - seconds);
-      const beatIdx = (elapsed % 8) + 1;
-      beatTrack.querySelectorAll('.beat-step:not(.beat-divider)').forEach((el, i) => {
-        el.classList.toggle('active-beat', (i + 1) === beatIdx);
-      });
     }
   },
 
