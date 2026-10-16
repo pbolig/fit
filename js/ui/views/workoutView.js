@@ -16,6 +16,7 @@ import { Sound } from '../sound.js';
 import { Toast } from '../toast.js';
 import { router } from '../router.js';
 import { generateUUID } from '../../config.js';
+import { danceAudioService, DANCE_RHYTHMS } from '../../services/danceAudioService.js';
 
 export const WorkoutView = {
   // Estado local del controlador de fases y configuración de la rutina activa
@@ -78,8 +79,9 @@ export const WorkoutView = {
         isPreset: !!activeRoutine.isPreset,
         exercises: (activeRoutine.exercises || []).map((e) => ({
           ...e,
-          targetReps: parseInt(e.targetReps, 10) || 10,
+          targetReps: parseInt(e.targetReps, 10) || (e.category === 'Baile & Ritmos' ? 45 : 10),
           targetWeight: parseFloat(e.targetWeight) || 0,
+          danceMode: e.danceMode || 'solo',
           sets: []
         }))
       };
@@ -116,10 +118,224 @@ export const WorkoutView = {
     return html;
   },
 
+  // Detecta el ritmo de baile según las características del ejercicio activo
+  detectRhythmFromExercise(ex) {
+    if (!ex) return danceAudioService.activeRhythm || 'bachata';
+    const text = `${ex.name || ''} ${ex.exercise_name || ''} ${ex.category || ''} ${ex.tips || ''}`.toLowerCase();
+    if (text.includes('salsa')) return 'salsa';
+    if (text.includes('merengue')) return 'merengue';
+    if (text.includes('reggaeton') || text.includes('urbano') || text.includes('dembow')) return 'reggaeton';
+    if (text.includes('bachata')) return 'bachata';
+    return danceAudioService.activeRhythm || 'bachata';
+  },
+
+  // Genera el HTML de la consola de configuración musical para Baile & Ritmos
+  renderDanceMusicSetupCard() {
+    const isDance = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((e) => e.category === 'Baile & Ritmos');
+    const currentMode = danceAudioService.currentMode;
+    const activeRhythm = danceAudioService.activeRhythm;
+    const allRhythms = danceAudioService.getAllRhythms();
+    const activeRhythmData = danceAudioService.getActiveRhythmData();
+
+    return `
+      <div id="dance-music-setup-wrapper" class="dance-music-setup-card" style="display: ${isDance ? 'block' : 'none'};">
+        <div class="music-setup-header">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <div class="card-icon-box" style="background: rgba(236, 72, 153, 0.2); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.4); width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            </div>
+            <div>
+              <h3 style="margin: 0; font-size: 0.96rem; font-weight: 700; color: #fff;">Consola de Audio Rítmico</h3>
+              <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary);">Música y bases percusivas sincronizadas al cronómetro</p>
+            </div>
+          </div>
+          <span class="badge-tag" style="background: rgba(236, 72, 153, 0.2); color: #f472b6; border-color: rgba(236, 72, 153, 0.4); font-size: 0.72rem;">
+            ✨ Compás de 8 Tiempos
+          </span>
+        </div>
+
+        <!-- TABS DE ORIGEN MUSICAL -->
+        <div class="music-source-tabs">
+          <button type="button" class="music-tab-btn ${currentMode === 'synth' ? 'active' : ''}" data-music-mode="synth">
+            🥁 Bases Offline (Web Audio)
+          </button>
+          <button type="button" class="music-tab-btn ${currentMode === 'streaming' ? 'active' : ''}" data-music-mode="streaming">
+            🎧 Playlists & Streaming
+          </button>
+          <button type="button" class="music-tab-btn ${currentMode === 'local_file' ? 'active' : ''}" data-music-mode="local_file">
+            📁 Mi Música (MP3 Local)
+          </button>
+        </div>
+
+        <!-- PANELES DE CONFIGURACIÓN -->
+        <div class="music-panel-content">
+          <!-- MODO 1: WEB AUDIO OFFLINE NATIVO -->
+          <div class="music-tab-pane" id="pane-music-synth" style="display: ${currentMode === 'synth' ? 'block' : 'none'};">
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.45rem;">
+              Seleccionar Ritmo de Percusión Sintética:
+            </label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-bottom: 0.65rem;">
+              ${allRhythms.map((r) => `
+                <button type="button" class="rhythm-pick-card ${r.id === activeRhythm ? 'active-rhythm' : ''}" data-rhythm-id="${r.id}">
+                  <div style="font-size: 1.15rem;">${r.icon}</div>
+                  <div style="font-weight: 700; font-size: 0.82rem; color: #fff;">${r.name.split(' ')[0]}</div>
+                  <div style="font-size: 0.7rem; color: #f472b6;">${r.defaultBpm} BPM</div>
+                </button>
+              `).join('')}
+            </div>
+            <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0;" id="txt-synth-rhythm-desc">
+              ℹ️ <strong>${activeRhythmData.name}:</strong> ${activeRhythmData.description}
+            </p>
+          </div>
+
+          <!-- MODO 2: STREAMING / YOUTUBE CURADOS -->
+          <div class="music-tab-pane" id="pane-music-streaming" style="display: ${currentMode === 'streaming' ? 'block' : 'none'};">
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
+              Playlists Recomendadas para Práctica (${activeRhythmData.name.split(' ')[0]}):
+            </label>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.65rem;">
+              ${(activeRhythmData.streamingPlaylists || []).map((pl, idx) => `
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; cursor: pointer; background: rgba(255,255,255,0.03); padding: 0.4rem 0.6rem; border-radius: 4px; border: 1px solid var(--border-subtle);">
+                  <input type="radio" name="selected-streaming-pl" value="${idx}" ${idx === danceAudioService.selectedPlaylistIndex ? 'checked' : ''}>
+                  <span>🎬 <strong>${pl.title}</strong></span>
+                </label>
+              `).join('')}
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="input-custom-stream-url" style="font-size: 0.76rem;">O tu enlace personalizado (YouTube):</label>
+              <input type="url" id="input-custom-stream-url" class="input-field" placeholder="https://www.youtube.com/watch?v=..." value="${danceAudioService.customStreamingUrl || ''}" style="font-size: 0.82rem; padding: 0.45rem;">
+            </div>
+          </div>
+
+          <!-- MODO 3: MI MP3 LOCAL -->
+          <div class="music-tab-pane" id="pane-music-local_file" style="display: ${currentMode === 'local_file' ? 'block' : 'none'};">
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
+              Cargar Archivo de Audio (MP3, WAV, M4A):
+            </label>
+            <input type="file" id="input-local-dance-mp3" accept="audio/*" class="input-field" style="padding: 0.4rem; font-size: 0.8rem;">
+            <p style="font-size: 0.76rem; color: #38ef7d; margin-top: 0.4rem; margin-bottom: 0;" id="txt-local-audio-name">
+              ${danceAudioService.localFileName ? `📁 Archivo seleccionado: <strong>${danceAudioService.localFileName}</strong>` : '💡 Cero consumo de datos móviles con reproducción en loop.'}
+            </p>
+          </div>
+        </div>
+
+        <!-- CONTROLES RÁPIDOS DE PRUEBA Y VOLUMEN -->
+        <div class="music-quick-controls">
+          <button type="button" id="btn-preview-dance-audio" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.4rem;">
+            <span id="preview-dance-audio-icon">${danceAudioService.isPlaying ? '⏸️' : '▶️'}</span>
+            <span id="preview-dance-audio-txt">${danceAudioService.isPlaying ? 'Pausar Prueba' : 'Probar Sonido'}</span>
+          </button>
+
+          <div style="display: flex; align-items: center; gap: 0.45rem; margin-left: auto;">
+            <span style="font-size: 0.78rem; color: var(--text-secondary);">🔊 Volumen:</span>
+            <input type="range" id="range-dance-preview-volume" min="0" max="1" step="0.05" value="${danceAudioService.volume}" class="dock-vol-slider" style="width: 85px;">
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // Genera el dock interactivo de música en el cronómetro gigante
+  renderActiveMusicDock(currentEx) {
+    const rhythmData = danceAudioService.getActiveRhythmData();
+    const isPlaying = danceAudioService.isPlaying;
+    const mode = danceAudioService.currentMode;
+
+    let trackTitle = `🥁 Base: ${rhythmData.name}`;
+    let trackMeta = `${danceAudioService.bpm} BPM · Compás de 8 Tiempos (Offline)`;
+
+    if (mode === 'local_file') {
+      trackTitle = `📁 ${danceAudioService.localFileName || 'Audio Local en Bucle'}`;
+      trackMeta = `Reproducción Local · Cero Datos`;
+    } else if (mode === 'streaming') {
+      trackTitle = `🎧 Playlist: ${rhythmData.name.split(' ')[0]} Streaming`;
+      trackMeta = `Audio Online`;
+    }
+
+    return `
+      <div class="active-music-dock" id="giant-active-music-dock">
+        <div class="dock-main-row">
+          <div class="dock-track-info">
+            <div class="dock-soundwave ${isPlaying ? 'is-playing' : ''}" id="giant-dock-soundwave">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="dock-track-text">
+              <span class="dock-track-title" id="giant-dock-track-title">${trackTitle}</span>
+              <span class="dock-track-meta" id="giant-dock-track-meta">${trackMeta}</span>
+            </div>
+          </div>
+
+          <div class="dock-actions-row">
+            <select id="giant-dock-rhythm-selector" class="dock-source-selector" title="Cambiar ritmo de práctica">
+              <option value="bachata" ${danceAudioService.activeRhythm === 'bachata' ? 'selected' : ''}>💃 Bachata (128 BPM)</option>
+              <option value="salsa" ${danceAudioService.activeRhythm === 'salsa' ? 'selected' : ''}>🔥 Salsa (185 BPM)</option>
+              <option value="merengue" ${danceAudioService.activeRhythm === 'merengue' ? 'selected' : ''}>🎺 Merengue (150 BPM)</option>
+              <option value="reggaeton" ${danceAudioService.activeRhythm === 'reggaeton' ? 'selected' : ''}>⚡ Urbano (96 BPM)</option>
+            </select>
+
+            <button type="button" class="dock-play-btn" id="btn-giant-dock-play" title="${isPlaying ? 'Pausar audio' : 'Reproducir audio'}">
+              ${isPlaying ? '⏸️' : '▶️'}
+            </button>
+
+            <div class="dock-vol-wrap" title="Volumen de la música">
+              <span style="font-size: 0.75rem;">🔊</span>
+              <input type="range" class="dock-vol-slider" id="giant-dock-vol-slider" min="0" max="1" step="0.05" value="${danceAudioService.volume}">
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // Vincula los eventos reactivos de beat y estado del motor de audio
+  setupDanceAudioListeners(container) {
+    if (this._danceBeatHandler) {
+      window.removeEventListener('fitpulse:dance-beat', this._danceBeatHandler);
+    }
+    if (this._danceStateChangeHandler) {
+      window.removeEventListener('fitpulse:dance-audio-state', this._danceStateChangeHandler);
+    }
+
+    this._danceBeatHandler = (e) => {
+      const beat = e.detail?.beatNumber || e.detail?.beat;
+      const beatTrack = container.querySelector('#dance-beat-track');
+      if (beatTrack && beat) {
+        const steps = beatTrack.querySelectorAll('.beat-step:not(.beat-divider)');
+        steps.forEach((el, i) => {
+          el.classList.toggle('active-beat', (i + 1) === beat);
+        });
+      }
+    };
+
+    this._danceStateChangeHandler = (e) => {
+      const isPlaying = e.detail?.isPlaying;
+      const soundwave = container.querySelector('#giant-dock-soundwave');
+      if (soundwave) {
+        soundwave.classList.toggle('is-playing', !!isPlaying);
+      }
+      const giantPlayBtn = container.querySelector('#btn-giant-dock-play');
+      if (giantPlayBtn) {
+        giantPlayBtn.textContent = isPlaying ? '⏸️' : '▶️';
+      }
+      const previewIcon = container.querySelector('#preview-dance-audio-icon');
+      const previewTxt = container.querySelector('#preview-dance-audio-txt');
+      if (previewIcon && previewTxt) {
+        previewIcon.textContent = isPlaying ? '⏸️' : '▶️';
+        previewTxt.textContent = isPlaying ? 'Pausar Prueba' : 'Probar Sonido';
+      }
+    };
+
+    window.addEventListener('fitpulse:dance-beat', this._danceBeatHandler);
+    window.addEventListener('fitpulse:dance-audio-state', this._danceStateChangeHandler);
+  },
+
   // ============================================================================
   // PANTALLA 1: PREPARACIÓN Y GESTIÓN DE RUTINAS
   // ============================================================================
   async renderRoutineSetupScreen(container, profile) {
+    // Detener música previa si estaba activa
+    danceAudioService.stop();
+
     // Si la rutina no tiene ejercicios, asignar dos iniciales
     if (this.routineConfig.exercises.length === 0) {
       this.routineConfig.exercises = [
@@ -180,95 +396,100 @@ export const WorkoutView = {
       </div>
 
       <div class="routine-setup-grid">
-        <!-- COLUMNA IZQUIERDA: CONFIGURACIÓN DE TIEMPOS Y RONDAS -->
-        <div class="card glass-card">
-          <div class="card-header">
-            <div class="card-icon-box accent-cyan">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <!-- COLUMNA IZQUIERDA: CONFIGURACIÓN DE TIEMPOS Y RONDAS + CONSOLA DE AUDIO -->
+        <div class="setup-col-left" style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="card glass-card">
+            <div class="card-header">
+              <div class="card-icon-box accent-cyan">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div>
+                <h2 class="card-title">Parámetros del Cronómetro</h2>
+                <p class="card-description">Control de intervalos para cada paso de la actividad</p>
+              </div>
             </div>
-            <div>
-              <h2 class="card-title">Parámetros del Cronómetro</h2>
-              <p class="card-description">Control de intervalos para cada paso de la actividad</p>
+
+            <div class="setup-controls-stack">
+              <!-- 1. Nombre y Enfoque -->
+              <div class="form-group full-width">
+                <label for="setup-title">Nombre de la Rutina</label>
+                <input type="text" id="setup-title" class="input-field" value="${this.routineConfig.title}">
+              </div>
+
+              <!-- 1.1 Categoría -->
+              <div class="form-group full-width">
+                <label for="setup-category">Categoría Principal</label>
+                <select id="setup-category" class="select-field">
+                  ${CATEGORIES.map((cat) => `
+                    <option value="${cat}" ${cat === this.routineConfig.category ? 'selected' : ''}>${cat}</option>
+                  `).join('')}
+                </select>
+              </div>
+
+              <!-- 2. Tiempo para Largar / Preparación -->
+              <div class="timing-selector-block">
+                <div class="timing-label-row">
+                  <span class="timing-title">⏱️ Tiempo para Largar (Prepárate)</span>
+                  <span class="timing-value" id="disp-prep-secs">${this.routineConfig.prepSeconds} seg</span>
+                </div>
+                <p class="timing-hint">Cuenta regresiva inicial para acomodar el peso y posicionarte.</p>
+                <div class="preset-pill-group" id="prep-pill-group">
+                  <button type="button" class="preset-pill ${this.routineConfig.prepSeconds === 5 ? 'active' : ''}" data-secs="5">5s</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.prepSeconds === 10 ? 'active' : ''}" data-secs="10">10s</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.prepSeconds === 15 ? 'active' : ''}" data-secs="15">15s</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.prepSeconds === 20 ? 'active' : ''}" data-secs="20">20s</button>
+                </div>
+              </div>
+
+              <!-- 3. Tiempo de Descanso Entre Series -->
+              <div class="timing-selector-block">
+                <div class="timing-label-row">
+                  <span class="timing-title">🧘 Tiempo de Descanso Entre Series</span>
+                  <span class="timing-value text-accent-cyan" id="disp-rest-secs">${this.routineConfig.restSeconds} seg</span>
+                </div>
+                <p class="timing-hint">Pausa obligatoria para recuperación neuromuscular (fuerza e hipertrofia).</p>
+                <div class="preset-pill-group" id="rest-pill-group">
+                  <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 30 ? 'active' : ''}" data-secs="30">30s (Cardio)</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 60 ? 'active' : ''}" data-secs="60">60s</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 90 ? 'active' : ''}" data-secs="90">90s (Óptimo)</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 120 ? 'active' : ''}" data-secs="120">2 min</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 180 ? 'active' : ''}" data-secs="180">3 min (Fuerza)</button>
+                </div>
+              </div>
+
+              <!-- 4. Cantidad de Vueltas / Series -->
+              <div class="timing-selector-block">
+                <div class="timing-label-row">
+                  <span class="timing-title">🔄 Cantidad de Vueltas / Series</span>
+                  <span class="timing-value" id="disp-rounds-count">${this.routineConfig.rounds} vueltas</span>
+                </div>
+                <p class="timing-hint">Número de series efectivas por ejercicio o vueltas al circuito.</p>
+                <div class="preset-pill-group" id="rounds-pill-group">
+                  <button type="button" class="preset-pill ${this.routineConfig.rounds === 2 ? 'active' : ''}" data-rounds="2">2 Vueltas</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.rounds === 3 ? 'active' : ''}" data-rounds="3">3 Vueltas</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.rounds === 4 ? 'active' : ''}" data-rounds="4">4 Vueltas</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.rounds === 5 ? 'active' : ''}" data-rounds="5">5 Vueltas</button>
+                </div>
+              </div>
+
+              <!-- 5. Duración de la Serie de Trabajo -->
+              <div class="timing-selector-block">
+                <div class="timing-label-row">
+                  <span class="timing-title">⚡ Modo de Ejecución por Serie</span>
+                  <span class="timing-value" id="disp-work-mode">${this.routineConfig.workSeconds === 0 ? 'Libre (Manual)' : this.routineConfig.workSeconds + 's'}</span>
+                </div>
+                <div class="preset-pill-group" id="work-pill-group">
+                  <button type="button" class="preset-pill ${this.routineConfig.workSeconds === 0 ? 'active' : ''}" data-secs="0">Libre (Terminar al completar reps)</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.workSeconds === 30 ? 'active' : ''}" data-secs="30">30s tiempo fijo</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.workSeconds === 45 ? 'active' : ''}" data-secs="45">45s tiempo fijo</button>
+                  <button type="button" class="preset-pill ${this.routineConfig.workSeconds === 60 ? 'active' : ''}" data-secs="60">60s tiempo fijo</button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="setup-controls-stack">
-            <!-- 1. Nombre y Enfoque -->
-            <div class="form-group full-width">
-              <label for="setup-title">Nombre de la Rutina</label>
-              <input type="text" id="setup-title" class="input-field" value="${this.routineConfig.title}">
-            </div>
-
-            <!-- 1.1 Categoría -->
-            <div class="form-group full-width">
-              <label for="setup-category">Categoría Principal</label>
-              <select id="setup-category" class="select-field">
-                ${CATEGORIES.map((cat) => `
-                  <option value="${cat}" ${cat === this.routineConfig.category ? 'selected' : ''}>${cat}</option>
-                `).join('')}
-              </select>
-            </div>
-
-            <!-- 2. Tiempo para Largar / Preparación -->
-            <div class="timing-selector-block">
-              <div class="timing-label-row">
-                <span class="timing-title">⏱️ Tiempo para Largar (Prepárate)</span>
-                <span class="timing-value" id="disp-prep-secs">${this.routineConfig.prepSeconds} seg</span>
-              </div>
-              <p class="timing-hint">Cuenta regresiva inicial para acomodar el peso y posicionarte.</p>
-              <div class="preset-pill-group" id="prep-pill-group">
-                <button type="button" class="preset-pill ${this.routineConfig.prepSeconds === 5 ? 'active' : ''}" data-secs="5">5s</button>
-                <button type="button" class="preset-pill ${this.routineConfig.prepSeconds === 10 ? 'active' : ''}" data-secs="10">10s</button>
-                <button type="button" class="preset-pill ${this.routineConfig.prepSeconds === 15 ? 'active' : ''}" data-secs="15">15s</button>
-                <button type="button" class="preset-pill ${this.routineConfig.prepSeconds === 20 ? 'active' : ''}" data-secs="20">20s</button>
-              </div>
-            </div>
-
-            <!-- 3. Tiempo de Descanso Entre Series -->
-            <div class="timing-selector-block">
-              <div class="timing-label-row">
-                <span class="timing-title">🧘 Tiempo de Descanso Entre Series</span>
-                <span class="timing-value text-accent-cyan" id="disp-rest-secs">${this.routineConfig.restSeconds} seg</span>
-              </div>
-              <p class="timing-hint">Pausa obligatoria para recuperación neuromuscular (fuerza e hipertrofia).</p>
-              <div class="preset-pill-group" id="rest-pill-group">
-                <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 30 ? 'active' : ''}" data-secs="30">30s (Cardio)</button>
-                <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 60 ? 'active' : ''}" data-secs="60">60s</button>
-                <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 90 ? 'active' : ''}" data-secs="90">90s (Óptimo)</button>
-                <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 120 ? 'active' : ''}" data-secs="120">2 min</button>
-                <button type="button" class="preset-pill ${this.routineConfig.restSeconds === 180 ? 'active' : ''}" data-secs="180">3 min (Fuerza)</button>
-              </div>
-            </div>
-
-            <!-- 4. Cantidad de Vueltas / Series -->
-            <div class="timing-selector-block">
-              <div class="timing-label-row">
-                <span class="timing-title">🔄 Cantidad de Vueltas / Series</span>
-                <span class="timing-value" id="disp-rounds-count">${this.routineConfig.rounds} vueltas</span>
-              </div>
-              <p class="timing-hint">Número de series efectivas por ejercicio o vueltas al circuito.</p>
-              <div class="preset-pill-group" id="rounds-pill-group">
-                <button type="button" class="preset-pill ${this.routineConfig.rounds === 2 ? 'active' : ''}" data-rounds="2">2 Vueltas</button>
-                <button type="button" class="preset-pill ${this.routineConfig.rounds === 3 ? 'active' : ''}" data-rounds="3">3 Vueltas</button>
-                <button type="button" class="preset-pill ${this.routineConfig.rounds === 4 ? 'active' : ''}" data-rounds="4">4 Vueltas</button>
-                <button type="button" class="preset-pill ${this.routineConfig.rounds === 5 ? 'active' : ''}" data-rounds="5">5 Vueltas</button>
-              </div>
-            </div>
-
-            <!-- 5. Duración de la Serie de Trabajo -->
-            <div class="timing-selector-block">
-              <div class="timing-label-row">
-                <span class="timing-title">⚡ Modo de Ejecución por Serie</span>
-                <span class="timing-value" id="disp-work-mode">${this.routineConfig.workSeconds === 0 ? 'Libre (Manual)' : this.routineConfig.workSeconds + 's'}</span>
-              </div>
-              <div class="preset-pill-group" id="work-pill-group">
-                <button type="button" class="preset-pill ${this.routineConfig.workSeconds === 0 ? 'active' : ''}" data-secs="0">Libre (Terminar al completar reps)</button>
-                <button type="button" class="preset-pill ${this.routineConfig.workSeconds === 30 ? 'active' : ''}" data-secs="30">30s tiempo fijo</button>
-                <button type="button" class="preset-pill ${this.routineConfig.workSeconds === 45 ? 'active' : ''}" data-secs="45">45s tiempo fijo</button>
-                <button type="button" class="preset-pill ${this.routineConfig.workSeconds === 60 ? 'active' : ''}" data-secs="60">60s tiempo fijo</button>
-              </div>
-            </div>
-          </div>
+          <!-- CONSOLA DE AUDIO RÍTMICO SI ES BAILE & RITMOS -->
+          ${this.renderDanceMusicSetupCard()}
         </div>
 
         <!-- COLUMNA DERECHA: LISTA DE EJERCICIOS DE LA SESIÓN -->
@@ -385,34 +606,63 @@ export const WorkoutView = {
       `;
     }
 
-    return this.routineConfig.exercises.map((ex, idx) => `
-      <div class="setup-exercise-item" data-idx="${idx}">
-        <span class="ex-order-number">${idx + 1}</span>
-        <div class="ex-item-info">
-          <h4 class="ex-item-name">${ex.name}</h4>
-          <span class="ex-item-cat">${ex.category} · ${ex.primaryMuscle || 'General'} · MET ${ex.metValue || 5.0}</span>
-        </div>
+    return this.routineConfig.exercises.map((ex, idx) => {
+      const isDance = ex.category === 'Baile & Ritmos' || this.routineConfig.category === 'Baile & Ritmos' || ex.type === 'duration';
+      const isCardio = ex.category === 'Cardio' || this.routineConfig.category === 'Cardio';
+      const danceMode = ex.danceMode || 'solo';
 
-        <!-- REPS & PESO OBJETIVO -->
-        <div class="ex-item-targets">
-          <div class="target-control-pill" title="Repeticiones objetivo">
-            <span class="target-lbl">Reps</span>
-            <input type="number" class="input-target-reps" data-idx="${idx}" min="1" max="500" value="${ex.targetReps || 10}">
+      return `
+        <div class="setup-exercise-item" data-idx="${idx}">
+          <span class="ex-order-number">${idx + 1}</span>
+          <div class="ex-item-info">
+            <h4 class="ex-item-name">${ex.name}</h4>
+            <span class="ex-item-cat">${ex.category} · ${ex.primaryMuscle || ex.subcategory || 'General'} · MET ${ex.metValue || 5.0}</span>
           </div>
-          <div class="target-control-pill" title="Peso sugerido en kg">
-            <span class="target-lbl">Kg</span>
-            <input type="number" class="input-target-weight" data-idx="${idx}" min="0" step="2.5" value="${ex.targetWeight || 0}">
-          </div>
-        </div>
 
-        <!-- ORDEN Y ELIMINACIÓN -->
-        <div class="ex-item-actions">
-          <button type="button" class="btn-order-ex" data-dir="up" data-idx="${idx}" title="Subir orden" ${idx === 0 ? 'disabled' : ''}>▲</button>
-          <button type="button" class="btn-order-ex" data-dir="down" data-idx="${idx}" title="Bajar orden" ${idx === this.routineConfig.exercises.length - 1 ? 'disabled' : ''}>▼</button>
-          <button type="button" class="btn-del-setup-ex" data-idx="${idx}" title="Eliminar de la rutina">&times;</button>
+          <!-- PARÁMETROS ADAPTATIVOS POR DISCIPLINA -->
+          <div class="ex-item-targets">
+            ${isDance ? `
+              <!-- BAILE & RITMOS: DURACIÓN POR PASO + TOGGLE SOLO / EN PAREJA -->
+              <div class="target-control-pill" title="Duración del paso en segundos por vuelta">
+                <span class="target-lbl">⏱️ Segs</span>
+                <input type="number" class="input-target-reps input-target-duration" data-idx="${idx}" min="15" max="300" step="5" value="${ex.targetReps || 45}">
+              </div>
+              <button type="button" class="btn-toggle-dance-mode ${danceMode === 'pareja' ? 'mode-pareja' : 'mode-solo'}" data-idx="${idx}" title="Alternar modalidad: Práctica individual o en pareja">
+                ${danceMode === 'pareja' ? '👥 Pareja' : '👤 Solo'}
+              </button>
+              ${ex.youtubeId ? `
+                <button type="button" class="btn-view-dance-demo" data-idx="${idx}" title="Ver demostración del paso">
+                  ▶️ Demo
+                </button>
+              ` : ''}
+            ` : isCardio ? `
+              <!-- CARDIO: SEGUNDOS O REPETICIONES SIN PESO -->
+              <div class="target-control-pill" title="Tiempo o repeticiones objetivo">
+                <span class="target-lbl">⏱️ / Reps</span>
+                <input type="number" class="input-target-reps" data-idx="${idx}" min="5" max="500" value="${ex.targetReps || 30}">
+              </div>
+            ` : `
+              <!-- FUERZA: REPS Y PESO EN KG -->
+              <div class="target-control-pill" title="Repeticiones objetivo">
+                <span class="target-lbl">Reps</span>
+                <input type="number" class="input-target-reps" data-idx="${idx}" min="1" max="500" value="${ex.targetReps || 10}">
+              </div>
+              <div class="target-control-pill" title="Peso sugerido en kg">
+                <span class="target-lbl">Kg</span>
+                <input type="number" class="input-target-weight" data-idx="${idx}" min="0" step="2.5" value="${ex.targetWeight || 0}">
+              </div>
+            `}
+          </div>
+
+          <!-- ORDEN Y ELIMINACIÓN -->
+          <div class="ex-item-actions">
+            <button type="button" class="btn-order-ex" data-dir="up" data-idx="${idx}" title="Subir orden" ${idx === 0 ? 'disabled' : ''}>▲</button>
+            <button type="button" class="btn-order-ex" data-dir="down" data-idx="${idx}" title="Bajar orden" ${idx === this.routineConfig.exercises.length - 1 ? 'disabled' : ''}>▼</button>
+            <button type="button" class="btn-del-setup-ex" data-idx="${idx}" title="Eliminar de la rutina">&times;</button>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   },
 
   // Aplica la rutina seleccionada en todos los controles del DOM
@@ -429,8 +679,9 @@ export const WorkoutView = {
       isPreset: !!routine.isPreset,
       exercises: (routine.exercises || []).map((e) => ({
         ...e,
-        targetReps: parseInt(e.targetReps, 10) || 10,
+        targetReps: parseInt(e.targetReps, 10) || (e.category === 'Baile & Ritmos' ? 45 : 10),
         targetWeight: parseFloat(e.targetWeight) || 0,
+        danceMode: e.danceMode || 'solo',
         sets: []
       }))
     };
@@ -487,6 +738,13 @@ export const WorkoutView = {
 
     const exCount = container.querySelector('#exercise-count-text');
     if (exCount) exCount.textContent = `${this.routineConfig.exercises.length} movimientos seleccionados`;
+
+    // Actualizar visibilidad de consola de audio si es Baile & Ritmos
+    const isDance = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((x) => x.category === 'Baile & Ritmos');
+    const musicWrapper = container.querySelector('#dance-music-setup-wrapper');
+    if (musicWrapper) {
+      musicWrapper.style.display = isDance ? 'block' : 'none';
+    }
   },
 
   attachSetupEvents(container, profile) {
@@ -681,6 +939,109 @@ export const WorkoutView = {
       });
     });
 
+    // 4.1 Cambio reactivo de Categoría principal
+    container.querySelector('#setup-category')?.addEventListener('change', (e) => {
+      this.routineConfig.category = e.target.value;
+      const isDanceNow = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((x) => x.category === 'Baile & Ritmos');
+      const musicWrap = container.querySelector('#dance-music-setup-wrapper');
+      if (musicWrap) {
+        musicWrap.style.display = isDanceNow ? 'block' : 'none';
+      }
+    });
+
+    // 4.2 Controles interactivos de la Consola de Audio Rítmico
+    // Tabs de selección de origen (Web Audio Synth / Streaming / MP3 Local)
+    container.querySelectorAll('.music-tab-btn').forEach((tabBtn) => {
+      tabBtn.addEventListener('click', () => {
+        container.querySelectorAll('.music-tab-btn').forEach((b) => b.classList.remove('active'));
+        tabBtn.classList.add('active');
+        const mode = tabBtn.getAttribute('data-music-mode');
+        danceAudioService.setMode(mode);
+
+        const synthPane = container.querySelector('#pane-music-synth');
+        const streamPane = container.querySelector('#pane-music-streaming');
+        const filePane = container.querySelector('#pane-music-local_file');
+
+        if (synthPane) synthPane.style.display = mode === 'synth' ? 'block' : 'none';
+        if (streamPane) streamPane.style.display = mode === 'streaming' ? 'block' : 'none';
+        if (filePane) filePane.style.display = mode === 'local_file' ? 'block' : 'none';
+      });
+    });
+
+    // Selección de ritmo offline
+    container.querySelectorAll('.rhythm-pick-card').forEach((rCard) => {
+      rCard.addEventListener('click', () => {
+        container.querySelectorAll('.rhythm-pick-card').forEach((c) => c.classList.remove('active-rhythm'));
+        rCard.classList.add('active-rhythm');
+        const rhythmId = rCard.getAttribute('data-rhythm-id');
+        danceAudioService.activeRhythm = rhythmId;
+        const rhythmData = DANCE_RHYTHMS[rhythmId] || DANCE_RHYTHMS.bachata;
+        danceAudioService.bpm = rhythmData.defaultBpm;
+
+        const descText = container.querySelector('#txt-synth-rhythm-desc');
+        if (descText) {
+          descText.innerHTML = `ℹ️ <strong>${rhythmData.name}:</strong> ${rhythmData.description}`;
+        }
+
+        if (danceAudioService.isPlaying && danceAudioService.currentMode === 'synth') {
+          danceAudioService.play();
+        }
+        Toast.info(`Ritmo: ${rhythmData.name} (${danceAudioService.bpm} BPM)`);
+      });
+    });
+
+    // Carga de archivo de audio local (MP3 / WAV / M4A)
+    const localFileInput = container.querySelector('#input-local-dance-mp3');
+    localFileInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const name = danceAudioService.loadLocalFile(file);
+        const nameDisplay = container.querySelector('#txt-local-audio-name');
+        if (nameDisplay) {
+          nameDisplay.innerHTML = `📁 Archivo seleccionado: <strong>${name}</strong> (Reproducción local activa)`;
+        }
+        Toast.success(`Audio cargado: ${name}`);
+      }
+    });
+
+    // Enlace de streaming personalizado
+    const customStreamInput = container.querySelector('#input-custom-stream-url');
+    customStreamInput?.addEventListener('input', (e) => {
+      danceAudioService.customStreamingUrl = e.target.value.trim();
+    });
+
+    container.querySelectorAll('input[name="selected-streaming-pl"]').forEach((r) => {
+      r.addEventListener('change', (e) => {
+        danceAudioService.selectedPlaylistIndex = parseInt(e.target.value, 10) || 0;
+      });
+    });
+
+    // Botón de prueba de sonido
+    const previewBtn = container.querySelector('#btn-preview-dance-audio');
+    previewBtn?.addEventListener('click', () => {
+      const isPlaying = danceAudioService.togglePlay();
+      const icon = container.querySelector('#preview-dance-audio-icon');
+      const txt = container.querySelector('#preview-dance-audio-txt');
+      if (icon) icon.textContent = isPlaying ? '⏸️' : '▶️';
+      if (txt) txt.textContent = isPlaying ? 'Pausar Prueba' : 'Probar Sonido';
+    });
+
+    // Slider de volumen en setup
+    const previewVol = container.querySelector('#range-dance-preview-volume');
+    previewVol?.addEventListener('input', (e) => {
+      danceAudioService.setVolume(e.target.value);
+    });
+
+    // Detener audio rítmico automáticamente si el atleta sale de la vista
+    if (!this._hashChangeListenerAttached) {
+      this._hashChangeListenerAttached = true;
+      window.addEventListener('hashchange', () => {
+        if (!window.location.hash.includes('workout')) {
+          danceAudioService.stop();
+        }
+      });
+    }
+
     // 5. Cambio en inputs de Reps y Peso dentro de la lista de ejercicios
     container.addEventListener('input', (e) => {
       if (e.target.classList.contains('input-target-reps')) {
@@ -696,8 +1057,36 @@ export const WorkoutView = {
       }
     });
 
-    // 5.1 Reordenar (▲ / ▼) y eliminar ejercicio de la rutina
+    // 5.1 Reordenar (▲ / ▼), eliminar y alternar modalidad de baile
     container.addEventListener('click', (e) => {
+      // Alternar modalidad de baile (Solo / En Pareja)
+      const danceToggle = e.target.closest('.btn-toggle-dance-mode');
+      if (danceToggle) {
+        const idx = parseInt(danceToggle.getAttribute('data-idx'), 10);
+        if (this.routineConfig.exercises[idx]) {
+          const curMode = this.routineConfig.exercises[idx].danceMode || 'solo';
+          this.routineConfig.exercises[idx].danceMode = curMode === 'solo' ? 'pareja' : 'solo';
+          container.querySelector('#setup-exercise-list').innerHTML = this.renderSetupExerciseItems();
+          Toast.info(`Modalidad: ${this.routineConfig.exercises[idx].danceMode === 'pareja' ? '👥 En Pareja' : '👤 Solo'}`);
+        }
+        return;
+      }
+
+      // Ver demostración o tutorial
+      const demoBtn = e.target.closest('.btn-view-dance-demo');
+      if (demoBtn) {
+        const idx = parseInt(demoBtn.getAttribute('data-idx'), 10);
+        const ex = this.routineConfig.exercises[idx];
+        if (ex) {
+          if (ex.youtubeId) {
+            window.open(`https://www.youtube.com/watch?v=${ex.youtubeId}`, '_blank', 'noopener');
+          } else {
+            Toast.info(ex.tips || 'Paso de baile de ritmo y disociación.');
+          }
+        }
+        return;
+      }
+
       // Reordenar ejercicio
       const orderBtn = e.target.closest('.btn-order-ex');
       if (orderBtn) {
@@ -725,6 +1114,12 @@ export const WorkoutView = {
         container.querySelector('#setup-exercise-list').innerHTML = this.renderSetupExerciseItems();
         const countElem = container.querySelector('#exercise-count-text');
         if (countElem) countElem.textContent = `${this.routineConfig.exercises.length} movimientos seleccionados`;
+
+        const isDanceNow = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((x) => x.category === 'Baile & Ritmos');
+        const musicWrap = container.querySelector('#dance-music-setup-wrapper');
+        if (musicWrap) {
+          musicWrap.style.display = isDanceNow ? 'block' : 'none';
+        }
       }
     });
 
@@ -803,6 +1198,13 @@ export const WorkoutView = {
           container.querySelector('#setup-exercise-list').innerHTML = this.renderSetupExerciseItems();
           const countElem = container.querySelector('#exercise-count-text');
           if (countElem) countElem.textContent = `${this.routineConfig.exercises.length} movimientos seleccionados`;
+
+          const isDanceNow = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((x) => x.category === 'Baile & Ritmos');
+          const musicWrap = container.querySelector('#dance-music-setup-wrapper');
+          if (musicWrap) {
+            musicWrap.style.display = isDanceNow ? 'block' : 'none';
+          }
+
           modal.style.display = 'none';
           Toast.success(`Añadido: ${ex.name}`);
         }
@@ -840,11 +1242,13 @@ export const WorkoutView = {
         workout_id: workout.id,
         exercise_id: ex.id,
         exercise_name: ex.name,
-        category: ex.category || category,
-        type: ex.type || 'strength',
-        metValue: ex.metValue || 6.0,
+        category: ex.category || this.routineConfig.category,
+        type: ex.type || (ex.category === 'Baile & Ritmos' ? 'duration' : 'strength'),
+        danceMode: ex.danceMode || 'solo',
+        youtubeId: ex.youtubeId || null,
+        metValue: ex.metValue || (ex.category === 'Baile & Ritmos' ? 6.5 : 6.0),
         tips: ex.tips || '',
-        target_reps: parseInt(ex.targetReps, 10) || 10,
+        target_reps: parseInt(ex.targetReps, 10) || (ex.category === 'Baile & Ritmos' ? 45 : 10),
         target_weight: parseFloat(ex.targetWeight) || 0,
         sets: []
       }));
@@ -886,6 +1290,17 @@ export const WorkoutView = {
       Sound.playCountdown();
     } else if (phase === 'work') {
       Sound.playGo();
+      const currentEx = workout?.exercises?.[this.activeController.currentExerciseIdx];
+      if (currentEx && (currentEx.category === 'Baile & Ritmos' || workout.category === 'Baile & Ritmos')) {
+        const detectedRhythm = this.detectRhythmFromExercise(currentEx);
+        if (danceAudioService.activeRhythm !== detectedRhythm) {
+          danceAudioService.activeRhythm = detectedRhythm;
+          danceAudioService.bpm = (DANCE_RHYTHMS[detectedRhythm] || DANCE_RHYTHMS.bachata).defaultBpm;
+        }
+        if (!danceAudioService.isPlaying) {
+          danceAudioService.play();
+        }
+      }
     } else if (phase === 'rest') {
       Sound.playRest();
     }
@@ -953,15 +1368,20 @@ export const WorkoutView = {
     const currentEx = workout.exercises[this.activeController.currentExerciseIdx];
     if (!currentEx) return;
 
+    const isDance = currentEx.category === 'Baile & Ritmos' || currentEx.type === 'duration';
+    const isCardio = currentEx.category === 'Cardio';
+
     // Obtener valores de los inputs en pantalla gigante
     const weightInput = container.querySelector('#active-input-weight');
     const repsInput = container.querySelector('#active-input-reps');
     const rpeInput = container.querySelector('#active-input-rpe');
 
-    const weight = weightInput ? parseFloat(weightInput.value) || 0 : 60;
-    const reps = repsInput ? parseInt(repsInput.value, 10) || 10 : 10;
+    const weight = (isDance || isCardio) ? 0 : (weightInput ? parseFloat(weightInput.value) || 0 : 0);
+    const reps = isDance
+      ? (this.routineConfig.workSeconds || 45)
+      : (repsInput ? parseInt(repsInput.value, 10) || 10 : 10);
     const rpe = rpeInput ? parseFloat(rpeInput.value) || 8 : 8;
-    const estimated1RM = Biometrics.calculate1RM(weight, reps);
+    const estimated1RM = (isDance || isCardio) ? 0 : Biometrics.calculate1RM(weight, reps);
 
     const newSet = {
       set_number: currentEx.sets.length + 1,
@@ -969,8 +1389,9 @@ export const WorkoutView = {
       weight_kg: weight,
       reps: reps,
       rpe: rpe,
+      danceMode: currentEx.danceMode || 'solo',
       estimated_1rm: estimated1RM,
-      duration_seconds: this.activeController.phaseTotalSeconds || 45,
+      duration_seconds: this.activeController.phaseTotalSeconds || (isDance ? 45 : 45),
       completed: true
     };
 
@@ -1055,51 +1476,100 @@ export const WorkoutView = {
           <div class="giant-timer-display" id="giant-timer-digits">
             ${this.formatTimeDigits(this.activeController.phaseSeconds)}
           </div>
+
+          <!-- CONSOLA DE AUDIO RÍTMICO EN VIVO (BAILE & RITMOS) -->
+          ${(currentEx.category === 'Baile & Ritmos' || workout.category === 'Baile & Ritmos') ? this.renderActiveMusicDock(currentEx) : ''}
         </div>
 
         <!-- CONTENIDO ESPECÍFICO SEGÚN LA FASE -->
         <div class="phase-interactive-content">
           ${phase === 'work' ? `
-            <!-- FORMULARIO RÁPIDO DE PESO Y REPS PARA LA SERIE -->
-            <div class="work-inputs-card card glass-card">
-              <div class="work-inputs-row">
-                <div class="work-input-col">
-                  <label for="active-input-weight">Peso Levantado (kg)</label>
-                  <div class="stepper-input-box">
-                    <button type="button" class="btn-step" id="btn-weight-minus">-2.5</button>
-                    <input type="number" id="active-input-weight" class="input-field giant-input" value="${this.getLastWeight(currentEx)}" step="2.5">
-                    <button type="button" class="btn-step" id="btn-weight-plus">+2.5</button>
+            ${currentEx.category === 'Baile & Ritmos' ? `
+              <!-- PANTALLA ADAPTATIVA DE BAILE & RITMOS: COMPÁS 8 TIEMPOS + MODALIDAD + TÉCNICA -->
+              <div class="work-inputs-card dance-work-card card glass-card">
+                <div class="dance-rhythm-banner">
+                  <div class="dance-rhythm-header">
+                    <span class="rhythm-tag">💃 COMPÁS RÍTMICO · 8 TIEMPOS</span>
+                    <span class="rhythm-mode-pill ${currentEx.danceMode === 'pareja' ? 'badge-pareja' : 'badge-solo'}">
+                      ${currentEx.danceMode === 'pareja' ? '👥 Modo Pareja (Conducción / Seguimiento)' : '👤 Modo Solo (Pasos Libres & Estilo)'}
+                    </span>
+                  </div>
+
+                  <div class="dance-beat-track" id="dance-beat-track">
+                    <div class="beat-step beat-1">1</div>
+                    <div class="beat-step beat-2">2</div>
+                    <div class="beat-step beat-3">3</div>
+                    <div class="beat-step beat-tap beat-4">4 TAP</div>
+                    <div class="beat-step beat-divider">·</div>
+                    <div class="beat-step beat-5">5</div>
+                    <div class="beat-step beat-6">6</div>
+                    <div class="beat-step beat-7">7</div>
+                    <div class="beat-step beat-tap beat-8">8 TAP</div>
                   </div>
                 </div>
 
-                <div class="work-input-col">
-                  <label for="active-input-reps">Repeticiones Logradas</label>
-                  <div class="stepper-input-box">
-                    <button type="button" class="btn-step" id="btn-reps-minus">-1</button>
-                    <input type="number" id="active-input-reps" class="input-field giant-input" value="${this.getLastReps(currentEx)}" step="1" min="1">
-                    <button type="button" class="btn-step" id="btn-reps-plus">+1</button>
+                <div class="dance-technique-box">
+                  <div class="tech-icon">💡</div>
+                  <div class="tech-text">
+                    <strong>Técnica de este Paso:</strong>
+                    <p>${currentEx.tips || 'Flexiona rodillas suavemente, apoya el metatarso en el tap y sincroniza la cadera al compás.'}</p>
+                  </div>
+                  ${currentEx.youtubeId ? `
+                    <a href="https://www.youtube.com/watch?v=${currentEx.youtubeId}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm dance-video-link">
+                      ▶️ Tutorial YouTube
+                    </a>
+                  ` : ''}
+                </div>
+
+                <div class="work-finish-btn-row">
+                  <button type="button" id="btn-complete-set" class="btn btn-success btn-glow btn-hero-lg full-width">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>💃 ¡PASO COMPLETADO! AVANZAR AL DESCANSO</span>
+                  </button>
+                </div>
+              </div>
+            ` : `
+              <!-- FORMULARIO RÁPIDO DE PESO Y REPS PARA LA SERIE -->
+              <div class="work-inputs-card card glass-card">
+                <div class="work-inputs-row">
+                  <div class="work-input-col">
+                    <label for="active-input-weight">Peso Levantado (kg)</label>
+                    <div class="stepper-input-box">
+                      <button type="button" class="btn-step" id="btn-weight-minus">-2.5</button>
+                      <input type="number" id="active-input-weight" class="input-field giant-input" value="${this.getLastWeight(currentEx)}" step="2.5">
+                      <button type="button" class="btn-step" id="btn-weight-plus">+2.5</button>
+                    </div>
+                  </div>
+
+                  <div class="work-input-col">
+                    <label for="active-input-reps">Repeticiones Logradas</label>
+                    <div class="stepper-input-box">
+                      <button type="button" class="btn-step" id="btn-reps-minus">-1</button>
+                      <input type="number" id="active-input-reps" class="input-field giant-input" value="${this.getLastReps(currentEx)}" step="1" min="1">
+                      <button type="button" class="btn-step" id="btn-reps-plus">+1</button>
+                    </div>
+                  </div>
+
+                  <div class="work-input-col">
+                    <label for="active-input-rpe">RPE (Esfuerzo 1-10)</label>
+                    <select id="active-input-rpe" class="select-field giant-select">
+                      <option value="7">7 - Moderado (Quedaban 3 reps)</option>
+                      <option value="8" selected>8 - Exigente (Quedaban 2 reps)</option>
+                      <option value="9">9 - Muy Pesado (Quedaba 1 rep)</option>
+                      <option value="10">10 - Máximo Esfuerzo (Fallo)</option>
+                    </select>
                   </div>
                 </div>
 
-                <div class="work-input-col">
-                  <label for="active-input-rpe">RPE (Esfuerzo 1-10)</label>
-                  <select id="active-input-rpe" class="select-field giant-select">
-                    <option value="7">7 - Moderado (Quedaban 3 reps)</option>
-                    <option value="8" selected>8 - Exigente (Quedaban 2 reps)</option>
-                    <option value="9">9 - Muy Pesado (Quedaba 1 rep)</option>
-                    <option value="10">10 - Máximo Esfuerzo (Fallo)</option>
-                  </select>
+                <!-- BOTÓN GIGANTE PARA COMPLETAR SERIE -->
+                <div class="work-finish-btn-row">
+                  <button type="button" id="btn-complete-set" class="btn btn-success btn-glow btn-hero-lg full-width">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>COMPLETAR SERIE & INICIAR DESCANSO</span>
+                  </button>
                 </div>
               </div>
-
-              <!-- BOTÓN GIGANTE PARA COMPLETAR SERIE -->
-              <div class="work-finish-btn-row">
-                <button type="button" id="btn-complete-set" class="btn btn-success btn-glow btn-hero-lg full-width">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span>COMPLETAR SERIE & INICIAR DESCANSO</span>
-                </button>
-              </div>
-            </div>
+            `}
           ` : phase === 'rest' ? `
             <!-- CONTROLES DE DESCANSO -->
             <div class="rest-actions-card card glass-card">
@@ -1128,6 +1598,7 @@ export const WorkoutView = {
     `;
 
     this.attachPhaseEvents(container, workout, profile);
+    this.setupDanceAudioListeners(container);
   },
 
   attachPhaseEvents(container, workout, profile) {
@@ -1137,6 +1608,17 @@ export const WorkoutView = {
       pauseBtn.addEventListener('click', () => {
         this.activeController.isPaused = !this.activeController.isPaused;
         pauseBtn.textContent = this.activeController.isPaused ? '▶️ Reanudar' : '⏸️ Pausar';
+        if (this.activeController.isPaused) {
+          if (danceAudioService.isPlaying) {
+            this._wasDancePlayingBeforePause = true;
+            danceAudioService.pause();
+          }
+        } else {
+          if (this._wasDancePlayingBeforePause) {
+            danceAudioService.play();
+            this._wasDancePlayingBeforePause = false;
+          }
+        }
         Toast.info(this.activeController.isPaused ? 'Cronómetro en pausa' : 'Reanudando entrenamiento');
       });
     }
@@ -1146,6 +1628,7 @@ export const WorkoutView = {
     if (finishEarlyBtn) {
       finishEarlyBtn.addEventListener('click', () => {
         if (confirm('¿Deseas finalizar el entrenamiento ahora y guardar el resumen de lo completado?')) {
+          danceAudioService.stop();
           this.recordActiveSet(container, workout, profile);
           this.completeWorkoutRoutine(container, workout, profile);
         }
@@ -1157,6 +1640,7 @@ export const WorkoutView = {
     if (cancelWorkoutBtn) {
       cancelWorkoutBtn.addEventListener('click', () => {
         if (confirm('¿Estás seguro de que deseas cancelar y descartar esta rutina?\n\nNo se guardará en tu historial ni en tus actividades.')) {
+          danceAudioService.stop();
           if (this.activeController.phaseTimer) {
             clearInterval(this.activeController.phaseTimer);
             this.activeController.phaseTimer = null;
@@ -1220,12 +1704,54 @@ export const WorkoutView = {
     container.querySelector('#btn-skip-prep')?.addEventListener('click', () => {
       this.handlePhaseEnd(container, workout, profile);
     });
+
+    // 7. Controles del Dock de Audio Rítmico en Pantalla Gigante
+    const giantPlayBtn = container.querySelector('#btn-giant-dock-play');
+    giantPlayBtn?.addEventListener('click', () => {
+      const isPlaying = danceAudioService.togglePlay();
+      giantPlayBtn.textContent = isPlaying ? '⏸️' : '▶️';
+      const soundwave = container.querySelector('#giant-dock-soundwave');
+      if (soundwave) soundwave.classList.toggle('is-playing', isPlaying);
+    });
+
+    const rhythmSelector = container.querySelector('#giant-dock-rhythm-selector');
+    rhythmSelector?.addEventListener('change', (e) => {
+      const rhythmId = e.target.value;
+      danceAudioService.activeRhythm = rhythmId;
+      const rhythmData = DANCE_RHYTHMS[rhythmId] || DANCE_RHYTHMS.bachata;
+      danceAudioService.bpm = rhythmData.defaultBpm;
+
+      if (danceAudioService.isPlaying && danceAudioService.currentMode === 'synth') {
+        danceAudioService.play();
+      }
+
+      const trackTitle = container.querySelector('#giant-dock-track-title');
+      const trackMeta = container.querySelector('#giant-dock-track-meta');
+      if (trackTitle) trackTitle.textContent = `🥁 Base: ${rhythmData.name}`;
+      if (trackMeta) trackMeta.textContent = `${danceAudioService.bpm} BPM · Compás de 8 Tiempos (Offline)`;
+      Toast.info(`Ritmo: ${rhythmData.name} (${danceAudioService.bpm} BPM)`);
+    });
+
+    const dockVolSlider = container.querySelector('#giant-dock-vol-slider');
+    dockVolSlider?.addEventListener('input', (e) => {
+      danceAudioService.setVolume(e.target.value);
+    });
   },
 
   updateGiantDigits(container, seconds, isCountdown = true) {
     const digitsElem = container.querySelector('#giant-timer-digits');
     if (digitsElem) {
       digitsElem.textContent = this.formatTimeDigits(seconds);
+    }
+
+    // Animar compás rítmico de 8 tiempos durante la fase de trabajo de baile
+    const beatTrack = container.querySelector('#dance-beat-track');
+    if (beatTrack && this.activeController.phase === 'work') {
+      const elapsed = Math.max(0, (this.activeController.phaseTotalSeconds || 45) - seconds);
+      const beatIdx = (elapsed % 8) + 1;
+      beatTrack.querySelectorAll('.beat-step:not(.beat-divider)').forEach((el, i) => {
+        el.classList.toggle('active-beat', (i + 1) === beatIdx);
+      });
     }
   },
 
@@ -1273,6 +1799,7 @@ export const WorkoutView = {
   // PANTALLA 3: RESUMEN FINAL DEL ENTRENAMIENTO (RESULTADOS Y CONCLUSIÓN)
   // ============================================================================
   async completeWorkoutRoutine(container, workout, profile) {
+    danceAudioService.stop();
     if (this.activeController.phaseTimer) {
       clearInterval(this.activeController.phaseTimer);
       this.activeController.phaseTimer = null;
@@ -1299,6 +1826,9 @@ export const WorkoutView = {
   },
 
   renderSummaryScreen(container, workout, profile) {
+    const isDance = workout.category === 'Baile & Ritmos';
+    const isCardio = workout.category === 'Cardio';
+
     let totalSetsCount = 0;
     let highest1RM = 0;
 
@@ -1311,23 +1841,23 @@ export const WorkoutView = {
 
     container.innerHTML = `
       <div class="summary-hero-card card glass-card">
-        <div class="summary-trophy-wrap">🏆</div>
-        <span class="badge-tag">¡Entrenamiento Completado!</span>
-        <h1 class="summary-title">Resumen de Rendimiento</h1>
-        <p class="summary-subtitle">Gran trabajo, ${profile.full_name || 'Atleta'}. Cada serie registrada suma a tu sobrecarga progresiva.</p>
+        <div class="summary-trophy-wrap">${isDance ? '💃' : isCardio ? '🏃' : '🏆'}</div>
+        <span class="badge-tag">${isDance ? '¡Sesión de Baile Completada!' : isCardio ? '¡Sesión Cardio Completada!' : '¡Entrenamiento Completado!'}</span>
+        <h1 class="summary-title">${workout.title || 'Resumen de Rendimiento'}</h1>
+        <p class="summary-subtitle">Gran trabajo, ${profile.full_name || 'Atleta'}. ${isDance ? 'Tu ritmo, coordinación y memoria muscular han quedado registrados con éxito.' : 'Cada serie y esfuerzo registrado suma a tu sobrecarga progresiva y evolución.'}</p>
 
         <!-- GRID DE RESULTADOS DESTACADOS -->
         <div class="summary-stats-grid">
           <div class="summary-stat-box">
             <span class="sbox-label">TIEMPO TOTAL</span>
             <div class="sbox-value">${durationMins} <span class="sbox-unit">minutos</span></div>
-            <span class="sbox-sub">Dedicatoria pura</span>
+            <span class="sbox-sub">${isDance ? 'Tiempo en pista' : 'Dedicatoria pura'}</span>
           </div>
 
           <div class="summary-stat-box">
-            <span class="sbox-label">VOLUMEN TOTAL</span>
-            <div class="sbox-value text-accent-cyan">${Math.round(workout.total_volume_kg).toLocaleString()} <span class="sbox-unit">kg</span></div>
-            <span class="sbox-sub">Peso acumulado levantado</span>
+            <span class="sbox-label">${isDance ? 'PASOS PRACTICADOS' : 'VOLUMEN TOTAL'}</span>
+            <div class="sbox-value text-accent-cyan">${isDance ? workout.exercises.length : Math.round(workout.total_volume_kg).toLocaleString()} <span class="sbox-unit">${isDance ? 'pasos' : 'kg'}</span></div>
+            <span class="sbox-sub">${isDance ? 'Repertorio y estilo' : 'Peso acumulado levantado'}</span>
           </div>
 
           <div class="summary-stat-box">
@@ -1337,26 +1867,30 @@ export const WorkoutView = {
           </div>
 
           <div class="summary-stat-box">
-            <span class="sbox-label">SERIES COMPLETADAS</span>
-            <div class="sbox-value">${totalSetsCount} <span class="sbox-unit">series</span></div>
-            <span class="sbox-sub">${workout.exercises.length} ejercicios realizados</span>
+            <span class="sbox-label">${isDance ? 'VUELTAS TOTALES' : 'SERIES COMPLETADAS'}</span>
+            <div class="sbox-value">${totalSetsCount} <span class="sbox-unit">${isDance ? 'vueltas' : 'series'}</span></div>
+            <span class="sbox-sub">${workout.exercises.length} movimientos</span>
           </div>
         </div>
 
-        <!-- DESGLOSE POR EJERCICIO -->
+        <!-- DESGLOSE POR EJERCICIO O PASO -->
         <div class="summary-exercise-breakdown">
-          <h3 class="breakdown-title">Desglose de Ejercicios Realizados</h3>
+          <h3 class="breakdown-title">${isDance ? 'Desglose de Pasos de Baile' : 'Desglose de Ejercicios Realizados'}</h3>
           <div class="breakdown-cards-list">
             ${workout.exercises.map((ex) => `
               <div class="breakdown-item card glass-card">
                 <div class="bitem-header">
                   <h4 class="bitem-name">${ex.exercise_name}</h4>
-                  <span class="bitem-cat">${ex.category}</span>
+                  <span class="bitem-cat">${ex.category} ${ex.danceMode ? `· ${ex.danceMode === 'pareja' ? '👥 Pareja' : '👤 Solo'}` : ''}</span>
                 </div>
                 <div class="bitem-stats-row">
-                  <span><strong>Series:</strong> ${ex.sets.length}</span>
-                  <span><strong>Volumen:</strong> ${Math.round(ex.total_volume_kg || 0)} kg</span>
-                  ${ex.best_1rm > 0 ? `<span><strong>1RM Máx:</strong> ${ex.best_1rm} kg</span>` : ''}
+                  <span><strong>${isDance ? 'Vueltas' : 'Series'}:</strong> ${ex.sets.length}</span>
+                  ${isDance ? `
+                    <span><strong>Calorías:</strong> ~${ex.calories_burned || Math.round(workout.total_calories / Math.max(1, workout.exercises.length))} kcal</span>
+                  ` : `
+                    <span><strong>Volumen:</strong> ${Math.round(ex.total_volume_kg || 0)} kg</span>
+                    ${ex.best_1rm > 0 ? `<span><strong>1RM Máx:</strong> ${ex.best_1rm} kg</span>` : ''}
+                  `}
                 </div>
               </div>
             `).join('')}
@@ -1364,15 +1898,18 @@ export const WorkoutView = {
         </div>
 
         <!-- ACCIONES FINALES -->
-        <div class="summary-actions-row">
-          <button type="button" id="btn-finish-go-dashboard" class="btn btn-primary btn-glow btn-lg full-width">
-            <span>💾 Volver al Panel Principal (Sincronizado)</span>
+        <div class="summary-actions-row" style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+          <a href="#history" class="btn btn-primary btn-glow btn-lg full-width text-center" style="text-decoration: none;">
+            <span>📈 Ver en Mi Historial de Actividades & Evolución</span>
+          </a>
+          <button type="button" id="btn-finish-go-dashboard" class="btn btn-secondary full-width">
+            <span>🏠 Volver al Panel Principal</span>
           </button>
         </div>
       </div>
     `;
 
-    container.querySelector('#btn-finish-go-dashboard').addEventListener('click', () => {
+    container.querySelector('#btn-finish-go-dashboard')?.addEventListener('click', () => {
       router.navigate('dashboard');
     });
   }

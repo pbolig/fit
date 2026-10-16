@@ -25,6 +25,23 @@ export const BUILTIN_PRESETS = [
     ]
   },
   {
+    id: 'preset_bachata_sensual',
+    name: 'Bachata Sensual & Pasos de Baile',
+    category: 'Baile & Ritmos',
+    prepSeconds: 10,
+    workSeconds: 45,
+    restSeconds: 20,
+    rounds: 3,
+    isPreset: true,
+    exerciseIds: [
+      { id: 'dance_bachata_basico', targetReps: 45, targetWeight: 0, danceMode: 'solo' },
+      { id: 'dance_bachata_madrid', targetReps: 45, targetWeight: 0, danceMode: 'solo' },
+      { id: 'dance_bachata_twist', targetReps: 45, targetWeight: 0, danceMode: 'solo' },
+      { id: 'dance_bachata_slide', targetReps: 45, targetWeight: 0, danceMode: 'solo' },
+      { id: 'dance_bachata_pareja', targetReps: 45, targetWeight: 0, danceMode: 'pareja' }
+    ]
+  },
+  {
     id: 'preset_cardio_dance',
     name: 'Cardio Dance & Ritmos Latinos',
     category: 'Baile & Ritmos',
@@ -34,10 +51,10 @@ export const BUILTIN_PRESETS = [
     rounds: 3,
     isPreset: true,
     exerciseIds: [
-      { id: 'dance_salsa_cubana', targetReps: 20, targetWeight: 0 },
-      { id: 'dance_bachata_sensual', targetReps: 20, targetWeight: 0 },
-      { id: 'dance_merengue_latino', targetReps: 25, targetWeight: 0 },
-      { id: 'dance_zumba_fitness', targetReps: 30, targetWeight: 0 }
+      { id: 'dance_salsa_cubana', targetReps: 20, targetWeight: 0, danceMode: 'solo' },
+      { id: 'dance_bachata_sensual', targetReps: 20, targetWeight: 0, danceMode: 'solo' },
+      { id: 'dance_merengue_latino', targetReps: 25, targetWeight: 0, danceMode: 'solo' },
+      { id: 'dance_zumba_fitness', targetReps: 30, targetWeight: 0, danceMode: 'solo' }
     ]
   },
   {
@@ -93,6 +110,7 @@ class RoutineService {
           ...catalogEx,
           targetReps: item.targetReps ?? 10,
           targetWeight: item.targetWeight ?? 0,
+          danceMode: item.danceMode || 'solo',
           sets: []
         };
       }
@@ -104,6 +122,7 @@ class RoutineService {
         metValue: 5.0,
         targetReps: item.targetReps ?? 10,
         targetWeight: item.targetWeight ?? 0,
+        danceMode: item.danceMode || 'solo',
         sets: []
       };
     });
@@ -161,6 +180,7 @@ class RoutineService {
       metValue: ex.metValue || 5.0,
       targetReps: parseInt(ex.targetReps, 10) || 10,
       targetWeight: parseFloat(ex.targetWeight) || 0,
+      danceMode: ex.danceMode || 'solo',
       youtube_url: ex.youtube_url || '',
       sets: []
     }));

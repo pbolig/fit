@@ -1,6 +1,7 @@
 // ==============================================================================
 // FITPULSE - WORKOUT HISTORY, ANALYTICS & PERSONAL RECORDS VIEW
-// Muestra el historial completo, gráficos Canvas de volumen y peso, y mejores marcas (PR).
+// Muestra el historial completo de entrenamientos (en solitario y en salas en vivo),
+// gráficos de evolución, desglose de ejercicios/pasos con acordeón interactivo y métricas acumuladas.
 // ==============================================================================
 
 import { workoutService } from '../../services/workoutService.js';
@@ -13,17 +14,66 @@ export const HistoryView = {
     const bodyMetrics = await workoutService.getBodyMetricsHistory();
     const personalRecords = await workoutService.getPersonalRecords();
 
+    // Métricas globales acumuladas para la barra de evolución
+    const totalSessions = workouts.length;
+    const totalMinutes = workouts.reduce((sum, w) => sum + Math.round((w.duration_seconds || 0) / 60), 0);
+    const totalHours = (totalMinutes / 60).toFixed(1);
+    const totalCaloriesBurned = workouts.reduce((sum, w) => sum + Math.round(w.total_calories || 0), 0);
+    const danceSessionsCount = workouts.filter((w) => w.category === 'Baile & Ritmos').length;
+    const roomClassesCount = workouts.filter((w) => w.room_id || w.trainer_name || (w.title && w.title.includes('Sala:'))).length;
+    const strengthSessionsCount = workouts.filter((w) => w.category === 'Fuerza').length;
+
     container.innerHTML = `
       <div class="view-header">
         <div class="view-title-group">
-          <span class="badge-tag">Progreso & Métricas</span>
-          <h1 class="view-title">Historial & Récords Personales</h1>
-          <p class="view-subtitle">Analiza tu sobrecarga progresiva, volumen acumulado y evolución física en el tiempo.</p>
+          <span class="badge-tag">Evolución & Actividades</span>
+          <h1 class="view-title">Historial de Rutinas & Evolución</h1>
+          <p class="view-subtitle">Monitorea tus entrenamientos individuales y clases en vivo, volumen acumulado y progreso atlético.</p>
         </div>
         <button id="btn-open-metric-modal" class="btn btn-secondary btn-glow">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           <span>Registrar Pesaje</span>
         </button>
+      </div>
+
+      <!-- BARRA SUPERIOR DE KPIs HISTÓRICOS Y EVOLUCIÓN -->
+      <div class="history-kpi-summary">
+        <div class="history-kpi-card card glass-card">
+          <div class="kpi-icon-wrap" style="color: #38bdf8;">📅</div>
+          <div class="kpi-data">
+            <span class="kpi-num">${totalSessions}</span>
+            <span class="kpi-lbl">Sesiones Realizadas</span>
+          </div>
+        </div>
+
+        <div class="history-kpi-card card glass-card">
+          <div class="kpi-icon-wrap" style="color: #34d399;">⏱️</div>
+          <div class="kpi-data">
+            <span class="kpi-num">${totalHours} <span style="font-size: 0.85rem; font-weight: 600;">hrs</span></span>
+            <span class="kpi-lbl">${totalMinutes} min entrenados</span>
+          </div>
+        </div>
+
+        <div class="history-kpi-card card glass-card">
+          <div class="kpi-icon-wrap" style="color: #f472b6;">🔥</div>
+          <div class="kpi-data">
+            <span class="kpi-num">${totalCaloriesBurned.toLocaleString()}</span>
+            <span class="kpi-lbl">Calorías Totales MET</span>
+          </div>
+        </div>
+
+        <div class="history-kpi-card card glass-card">
+          <div class="kpi-icon-wrap" style="color: #fbbf24;">🏆</div>
+          <div class="kpi-data">
+            <span class="kpi-num" style="font-size: 1.05rem; line-height: 1.3;">
+              ${danceSessionsCount > 0 ? `💃 ${danceSessionsCount} ` : ''}
+              ${roomClassesCount > 0 ? `🧑‍🏫 ${roomClassesCount} ` : ''}
+              ${strengthSessionsCount > 0 ? `🏋️ ${strengthSessionsCount}` : ''}
+              ${totalSessions === 0 ? 'Sin registros' : ''}
+            </span>
+            <span class="kpi-lbl">Disciplinas Practicadas</span>
+          </div>
+        </div>
       </div>
 
       <!-- GRÁFICOS ANALÍTICOS NATIVOS -->
@@ -41,12 +91,12 @@ export const HistoryView = {
           </div>
         </div>
 
-        <!-- Gráfico 2: Volumen de Entrenamiento Reciente -->
+        <!-- Gráfico 2: Evolución de Rendimiento y Actividad -->
         <div class="card glass-card chart-card">
           <div class="chart-header">
             <div>
-              <h3 class="chart-title">Volumen por Sesión (kg)</h3>
-              <p class="chart-subtitle">Sobrecarga progresiva (peso × repeticiones)</p>
+              <h3 class="chart-title">Evolución de Actividad Reciente</h3>
+              <p class="chart-subtitle">Calorías y sobrecarga por sesión realizada</p>
             </div>
           </div>
           <div class="chart-canvas-wrapper">
@@ -64,7 +114,7 @@ export const HistoryView = {
 
         ${personalRecords.length === 0 ? `
           <div class="card glass-card empty-pr-box">
-            <p>Tus récords personales de 1RM aparecerán aquí automáticamente conforme completes series pesadas en tus entrenamientos.</p>
+            <p>Tus récords personales de 1RM aparecerán aquí conforme completes series pesadas en tus rutinas de fuerza.</p>
           </div>
         ` : `
           <div class="pr-grid">
@@ -85,52 +135,95 @@ export const HistoryView = {
         `}
       </div>
 
-      <!-- LISTA DE SESIONES HISTÓRICAS -->
+      <!-- LISTA DE SESIONES HISTÓRICAS (CON ACORDEÓN EXPANDIBLE DE EJERCICIOS Y PASOS) -->
       <div class="history-list-section">
-        <h2 class="section-title">Registro Detallado de Sesiones</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div>
+            <h2 class="section-title" style="margin: 0;">Registro Detallado de Sesiones</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0;">
+              Haz clic en cualquier tarjeta para desplegar el desglose de ejercicios o pasos realizados.
+            </p>
+          </div>
+          <span class="badge-tag">${workouts.length} registradas</span>
+        </div>
 
         ${workouts.length === 0 ? `
           <div class="card glass-card empty-history-card">
-            <p>No hay entrenamientos guardados todavía.</p>
+            <p>No hay entrenamientos guardados todavía. Comienza en "Entrenar Ahora" o únete a una "Sala en Vivo".</p>
           </div>
         ` : `
           <div class="history-cards-stack" id="history-cards-container">
-            ${workouts.map((w) => `
-              <div class="card glass-card history-session-card" data-workout-id="${w.id}">
-                <div class="session-main-row">
-                  <div class="session-icon">
-                    ${w.category === 'Cardio' ? '🏃' : w.category === 'HIIT / Funcional' ? '⚡' : '🏋️'}
-                  </div>
-                  <div class="session-info">
-                    <h3 class="session-title">${w.title}</h3>
-                    <div class="session-date-line">
-                      <span>${new Date(w.start_time).toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
-                      <span class="dot-separator">•</span>
-                      <span class="session-cat-pill">${w.category || 'Fuerza'}</span>
+            ${workouts.map((w) => {
+              const isDance = w.category === 'Baile & Ritmos';
+              const isCardio = w.category === 'Cardio';
+              const isHiit = w.category === 'HIIT / Funcional';
+              const isRoom = !!(w.room_id || w.trainer_name || (w.title && w.title.includes('Sala:')));
+
+              let icon = '🏋️';
+              if (isDance) icon = '💃';
+              else if (isCardio) icon = '🏃';
+              else if (isHiit) icon = '⚡';
+              else if (isRoom) icon = '🧑‍🏫';
+
+              const durationMins = Math.round((w.duration_seconds || 0) / 60);
+
+              return `
+                <div class="card glass-card history-session-card" data-workout-id="${w.id}">
+                  <div class="session-main-row">
+                    <div class="session-icon" style="font-size: 1.8rem;">
+                      ${icon}
                     </div>
-                  </div>
-                  <div class="session-metrics-pills">
-                    <div class="sm-pill">
-                      <span class="sm-val">${Math.round((w.duration_seconds || 0) / 60)}</span>
-                      <span class="sm-lbl">min</span>
-                    </div>
-                    <div class="sm-pill text-accent-coral">
-                      <span class="sm-val">${Math.round(w.total_calories || 0)}</span>
-                      <span class="sm-lbl">kcal</span>
-                    </div>
-                    ${w.total_volume_kg > 0 ? `
-                      <div class="sm-pill text-accent-cyan">
-                        <span class="sm-val">${Math.round(w.total_volume_kg).toLocaleString()}</span>
-                        <span class="sm-lbl">kg vol</span>
+
+                    <div class="session-info">
+                      <h3 class="session-title" style="margin-bottom: 0.2rem;">${w.title}</h3>
+                      <div class="session-date-line">
+                        <span>${new Date(w.start_time).toLocaleString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span class="dot-separator">•</span>
+                        <span class="session-cat-pill" style="font-weight: 700; ${isDance ? 'background: rgba(236,72,153,0.2); color:#f472b6;' : isRoom ? 'background: rgba(16,185,129,0.2); color:#34d399;' : ''}">
+                          ${w.category || 'Fuerza'}
+                        </span>
+                        ${isRoom ? `
+                          <span class="dot-separator">•</span>
+                          <span style="color: var(--accent-cyan); font-size: 0.76rem; font-weight: 600;">
+                            ${w.attendance_mode === 'remote' ? '🌐 Remoto' : '📍 En Sala'}
+                          </span>
+                        ` : ''}
                       </div>
-                    ` : ''}
+                    </div>
+
+                    <div class="session-metrics-pills">
+                      <div class="sm-pill">
+                        <span class="sm-val">${durationMins}</span>
+                        <span class="sm-lbl">min</span>
+                      </div>
+
+                      <div class="sm-pill text-accent-coral">
+                        <span class="sm-val">${Math.round(w.total_calories || 0)}</span>
+                        <span class="sm-lbl">kcal</span>
+                      </div>
+
+                      ${w.total_volume_kg > 0 ? `
+                        <div class="sm-pill text-accent-cyan">
+                          <span class="sm-val">${Math.round(w.total_volume_kg).toLocaleString()}</span>
+                          <span class="sm-lbl">kg vol</span>
+                        </div>
+                      ` : ''}
+
+                      <button class="btn-toggle-expand" title="Ver desglose de ejercicios" type="button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+
+                      <button class="btn-icon-danger btn-delete-history" data-workout-id="${w.id}" title="Eliminar de historial" type="button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
                   </div>
-                  <button class="btn-icon-danger btn-delete-history" data-workout-id="${w.id}" title="Eliminar de historial">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                  </button>
+
+                  <!-- DRAWER EXPANDIBLE CON EL DETALLE DE LA SESIÓN -->
+                  <div class="history-detail-drawer" data-workout-id="${w.id}"></div>
                 </div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         `}
       </div>
@@ -185,7 +278,6 @@ export const HistoryView = {
           value: parseFloat(m.weight_kg)
         }));
       } else {
-        // Datos de ejemplo visual si no hay historial aún
         weightPoints = [
           { label: 'Sem 1', value: 80.5 },
           { label: 'Sem 2', value: 79.8 },
@@ -195,36 +287,142 @@ export const HistoryView = {
       }
       Charts.renderLineChart(weightCanvas, weightPoints, {
         lineColor: '#00f2fe',
-        gradientTop: 'rgba(0, 242, 254, 0.3)',
+        gradientTop: 'rgba(0, 242, 254, 0.35)',
         gradientBottom: 'rgba(0, 242, 254, 0.0)'
       });
     }
 
-    // 2. Gráfico de Volumen
+    // 2. Gráfico de Actividad & Sobrecarga / Calorías
     const volumeCanvas = container.querySelector('#volume-history-canvas');
     if (volumeCanvas) {
-      let volumeItems = [];
+      let activityItems = [];
       if (workouts && workouts.length > 0) {
-        volumeItems = workouts.slice(0, 7).reverse().map((w) => ({
-          label: new Date(w.start_time).toLocaleDateString('es-ES', { weekday: 'short' }),
-          value: Math.round(w.total_volume_kg || 0),
-          color: '#8b5cf6',
-          colorSecondary: '#ec4899'
-        }));
+        activityItems = workouts.slice(0, 7).reverse().map((w) => {
+          const isDance = w.category === 'Baile & Ritmos';
+          const isRoom = !!(w.room_id || w.trainer_name || (w.title && w.title.includes('Sala:')));
+          
+          let val = Math.round(w.total_volume_kg || 0);
+          let col = '#8b5cf6';
+          let sec = '#ec4899';
+
+          // Si es baile o cardio sin volumen de pesas, graficar las calorías MET
+          if (val === 0 || isDance) {
+            val = Math.round(w.total_calories || 250);
+            col = isDance ? '#ec4899' : isRoom ? '#10b981' : '#38bdf8';
+            sec = isDance ? '#f43f5e' : isRoom ? '#34d399' : '#00f2fe';
+          }
+
+          return {
+            label: new Date(w.start_time).toLocaleDateString('es-ES', { weekday: 'short' }),
+            value: val,
+            color: col,
+            colorSecondary: sec
+          };
+        });
       } else {
-        volumeItems = [
-          { label: 'Lun', value: 4500, color: '#8b5cf6', colorSecondary: '#ec4899' },
-          { label: 'Mie', value: 6200, color: '#8b5cf6', colorSecondary: '#ec4899' },
-          { label: 'Vie', value: 5800, color: '#8b5cf6', colorSecondary: '#ec4899' },
-          { label: 'Sab', value: 3100, color: '#8b5cf6', colorSecondary: '#ec4899' }
+        activityItems = [
+          { label: 'Lun', value: 380, color: '#ec4899', colorSecondary: '#f43f5e' },
+          { label: 'Mie', value: 520, color: '#10b981', colorSecondary: '#34d399' },
+          { label: 'Vie', value: 450, color: '#8b5cf6', colorSecondary: '#ec4899' },
+          { label: 'Sab', value: 310, color: '#38bdf8', colorSecondary: '#00f2fe' }
         ];
       }
-      Charts.renderBarChart(volumeCanvas, volumeItems);
+      Charts.renderBarChart(volumeCanvas, activityItems);
     }
   },
 
   attachEvents(container) {
-    // Modal de Pesaje
+    // 1. Acordeón interactivo: expandir y cargar detalle de ejercicios de cualquier sesión
+    container.querySelectorAll('.history-session-card').forEach((card) => {
+      card.addEventListener('click', async (e) => {
+        // Evitar que el clic en el botón de eliminar dispare la apertura
+        if (e.target.closest('.btn-delete-history')) return;
+
+        const isExpanded = card.classList.toggle('is-expanded');
+        const drawer = card.querySelector('.history-detail-drawer');
+        if (!drawer) return;
+
+        if (isExpanded && !drawer.dataset.loaded) {
+          const workoutId = card.getAttribute('data-workout-id');
+          drawer.innerHTML = `<div style="text-align: center; padding: 1.25rem; color: var(--text-muted);"><span class="pulse-dot"></span> Cargando desglose de ejercicios...</div>`;
+
+          try {
+            const fullWorkout = await workoutService.getWorkoutWithExercises(workoutId);
+            const exercises = fullWorkout?.exercises || [];
+            const isDance = fullWorkout?.category === 'Baile & Ritmos';
+            const isRoom = !!(fullWorkout?.room_id || fullWorkout?.trainer_name || (fullWorkout?.title && fullWorkout?.title.includes('Sala:')));
+
+            let html = `
+              <div class="drawer-header-info">
+                ${isRoom ? `
+                  <span class="drawer-room-badge">
+                    🧑‍🏫 Clase dirigida con ${fullWorkout.trainer_name || 'Entrenador'} · ${fullWorkout.attendance_mode === 'remote' ? '🌐 Modo Remoto' : '📍 Modo Presencial'}
+                  </span>
+                ` : isDance ? `
+                  <span class="drawer-room-badge" style="background: rgba(236,72,153,0.15); color: #f472b6; border-color: rgba(236,72,153,0.3);">
+                    💃 Práctica de Baile & Ritmos
+                  </span>
+                ` : `
+                  <span class="drawer-room-badge" style="background: rgba(139,92,246,0.15); color: #c084fc; border-color: rgba(139,92,246,0.3);">
+                    🏋️ Sesión de Musculación & Fuerza
+                  </span>
+                `}
+                ${fullWorkout?.notes ? `<span class="drawer-notes">${fullWorkout.notes}</span>` : ''}
+              </div>
+            `;
+
+            if (exercises.length === 0) {
+              html += `<p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.5rem 0;">Esta sesión no tiene un desglose individual de ejercicios almacenado.</p>`;
+            } else {
+              html += `
+                <table class="drawer-exercise-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 32px;">#</th>
+                      <th>${isDance ? 'Paso de Baile' : 'Ejercicio'}</th>
+                      <th>${isDance ? 'Modalidad' : 'Series'}</th>
+                      <th>${isDance ? 'Tiempo / Vuelta' : 'Reps × Peso'}</th>
+                      <th>${isDance ? 'Gasto Calórico' : 'Máx 1RM'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${exercises.map((ex, i) => {
+                      const setsCount = (ex.sets || []).length || 1;
+                      const firstSet = (ex.sets && ex.sets[0]) ? ex.sets[0] : {};
+                      const danceModeLabel = (firstSet.danceMode === 'pareja' || ex.danceMode === 'pareja') ? '👥 En Pareja' : '👤 Solo';
+                      const best1RMText = ex.best_1rm > 0 ? `${ex.best_1rm} kg` : '-';
+                      const calsText = ex.calories_burned > 0 ? `${ex.calories_burned} kcal` : '~';
+
+                      return `
+                        <tr>
+                          <td>${i + 1}</td>
+                          <td class="drawer-ex-name">${ex.exercise_name}</td>
+                          <td>${isDance ? danceModeLabel : `${setsCount} series`}</td>
+                          <td>
+                            ${isDance
+                              ? `${firstSet.duration_seconds || 45} segs`
+                              : `${firstSet.reps || 10} reps ${firstSet.weight_kg > 0 ? `× ${firstSet.weight_kg}kg` : ''}`}
+                          </td>
+                          <td>${isDance ? calsText : best1RMText}</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              `;
+            }
+
+            drawer.innerHTML = html;
+            drawer.dataset.loaded = 'true';
+          } catch (err) {
+            console.warn('Error al cargar ejercicios del workout:', err);
+            drawer.innerHTML = `<p style="font-size: 0.85rem; color: #ef4444; padding: 0.5rem;">No fue posible cargar el detalle de la sesión.</p>`;
+          }
+        }
+      });
+    });
+
+    // 2. Modal de Pesaje
     const metricModal = container.querySelector('#metric-modal');
     const openMetricBtn = container.querySelector('#btn-open-metric-modal');
     const closeMetricBtn = container.querySelector('#btn-close-metric-modal');
@@ -273,7 +471,7 @@ export const HistoryView = {
       });
     }
 
-    // Eliminar sesión
+    // 3. Eliminar sesión
     container.querySelectorAll('.btn-delete-history').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();

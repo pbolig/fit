@@ -17,23 +17,31 @@ import { authService } from '../services/authService.js';
 
 class Router {
   constructor() {
-    this.routes = {
-      dashboard: DashboardView,
-      profile: ProfileView,
-      workout: WorkoutView,
-      history: HistoryView,
-      catalog: CatalogView,
-      settings: SettingsView,
-      admin: SuperAdminView,
-      'trainer-hub': TrainerHubView,
-      classes: LiveRoomAthleteView
-    };
+    this._routes = null;
     this.currentView = null;
     this.container = null;
   }
 
+  getRoutes() {
+    if (!this._routes) {
+      this._routes = {
+        dashboard: DashboardView,
+        profile: ProfileView,
+        workout: WorkoutView,
+        history: HistoryView,
+        catalog: CatalogView,
+        settings: SettingsView,
+        admin: SuperAdminView,
+        'trainer-hub': TrainerHubView,
+        classes: LiveRoomAthleteView
+      };
+    }
+    return this._routes;
+  }
+
   init(containerElement) {
     this.container = containerElement;
+    this.getRoutes();
 
     // Escuchar cambios de autenticación
     window.addEventListener('fitpulse:auth-changed', (e) => {
@@ -79,7 +87,9 @@ class Router {
 
     document.body.classList.remove('auth-locked');
 
-    const targetRoute = this.routes[routeName] ? routeName : 'dashboard';
+    const routes = this.getRoutes();
+    this.routes = routes;
+    const targetRoute = routes[routeName] ? routeName : 'dashboard';
 
     if (updateHash) {
       window.location.hash = targetRoute;
@@ -105,7 +115,7 @@ class Router {
         this.currentView = targetRoute;
         
         try {
-          await this.routes[targetRoute].render(this.container);
+          await routes[targetRoute].render(this.container);
         } catch (err) {
           console.error(`Error al renderizar vista "${targetRoute}":`, err);
           this.container.innerHTML = `

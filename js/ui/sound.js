@@ -47,26 +47,34 @@ class SoundService {
     }
   }
 
+  _notifyAlert() {
+    window.dispatchEvent(new CustomEvent('fitpulse:audio-alert'));
+  }
+
   // 1. Pitido corto de cuenta regresiva (3, 2, 1)
   playCountdown() {
+    this._notifyAlert();
     this.playTone(880, 'sine', 0.12, 0.25);
     if (navigator.vibrate) navigator.vibrate(80);
   }
 
   // 2. Pitido de inicio de trabajo / ¡A Entrenar!
   playGo() {
+    this._notifyAlert();
     this.playTone(1760, 'triangle', 0.35, 0.3);
     if (navigator.vibrate) navigator.vibrate([120, 80, 200]);
   }
 
   // 3. Pitido de inicio de descanso
   playRest() {
+    this._notifyAlert();
     this.playTone(587.33, 'sine', 0.25, 0.25);
     if (navigator.vibrate) navigator.vibrate(100);
   }
 
   // 4. Acorde triunfal al finalizar el entrenamiento
   playVictory() {
+    this._notifyAlert();
     const notes = [523.25, 659.25, 783.99, 1046.50]; // C E G C
     notes.forEach((freq, idx) => {
       setTimeout(() => {

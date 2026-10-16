@@ -11,6 +11,10 @@
 
 import { authService } from '../../services/authService.js';
 import { classRoomService } from '../../services/classRoomService.js';
+import { workoutService } from '../../services/workoutService.js';
+import { Biometrics } from '../../services/biometrics.js';
+import { syncManager } from '../../db/syncManager.js';
+import { generateUUID } from '../../config.js';
 import { Toast } from '../toast.js';
 import { router } from '../router.js';
 
@@ -700,8 +704,86 @@ export const LiveRoomAthleteView = {
     if (indicator) indicator.style.display = 'none';
   },
 
+  async recordRoomWorkoutSession(summaryStats = {}) {
+    if (!this.activeClass) return null;
+    const user = authService.getCurrentUser();
+    if (!user) return null;
+
+    try {
+      const profile = await workoutService.getProfile();
+      const userWeight = profile?.weight_kg || 75;
+
+      const workoutId = generateUUID();
+      const category = this.activeClass.category || 'Clase Dirigida';
+      const durationMinutes = summaryStats?.durationMinutes || this.activeClass.duration_minutes || 45;
+      const durationSeconds = durationMinutes * 60;
+
+      let metValue = 6.5;
+      if (category === 'Baile & Ritmos') metValue = 6.8;
+      else if (category === 'Cardio' || category === 'HIIT / Funcional') metValue = 8.0;
+      else if (category === 'Fuerza') metValue = 6.0;
+
+      const totalCalories = Math.round(Biometrics.calculateCardioCalories(metValue, userWeight, durationMinutes));
+
+      const routineExercises = this.activeClass.routine_config?.exercises || [
+        { name: 'Calentamiento & Activación Articular', sets: 1, reps: 10 },
+        { name: 'Bloque Principal Guiado en Sala', sets: 3, reps: 12 },
+        { name: 'Vuelta a la Calma & Estiramiento', sets: 1, reps: 10 }
+      ];
+
+      const exercises = routineExercises.map((e, idx) => ({
+        id: generateUUID(),
+        workout_id: workoutId,
+        user_id: user.id,
+        exercise_id: e.id || `room_ex_${idx}`,
+        exercise_name: e.name || 'Ejercicio de Sala',
+        category: category,
+        order_index: idx,
+        sets: [{
+          set_number: 1,
+          weight_kg: 0,
+          reps: typeof e.reps === 'number' ? e.reps : 12,
+          duration_seconds: Math.round(durationSeconds / Math.max(1, routineExercises.length)),
+          completed: true
+        }],
+        best_1rm: 0,
+        total_volume_kg: 0,
+        calories_burned: Math.round(totalCalories / Math.max(1, routineExercises.length))
+      }));
+
+      const workoutPayload = {
+        id: workoutId,
+        user_id: user.id,
+        title: `Sala: ${this.activeClass.title || 'Clase en Vivo'} (${this.activeClass.trainer_name || 'Entrenador'})`,
+        category: category,
+        start_time: this.activeClass.live_state?.startedAt || this.currentAttendee?.joined_at || new Date(Date.now() - durationSeconds * 1000).toISOString(),
+        end_time: new Date().toISOString(),
+        duration_seconds: durationSeconds,
+        total_volume_kg: 0,
+        total_calories: totalCalories,
+        notes: `Clase con entrenador: ${this.activeClass.trainer_name || 'Entrenador'}. Modalidad: ${this.currentAttendee?.mode === 'remote' ? '🌐 Remoto (Videocámara)' : '📍 Presencial (En sala)'}.`,
+        status: 'completed',
+        room_id: this.activeClass.id,
+        trainer_name: this.activeClass.trainer_name,
+        attendance_mode: this.currentAttendee?.mode || 'in_person'
+      };
+
+      // Guardar la sesión y sus ejercicios tanto en IndexedDB local como en cola de Supabase
+      await syncManager.saveAndQueue('workouts', 'workout_sessions', workoutPayload, 'UPSERT');
+      for (const ex of exercises) {
+        await syncManager.saveAndQueue('workout_exercises', 'workout_exercises', ex, 'UPSERT');
+      }
+
+      window.dispatchEvent(new CustomEvent('fitpulse:workout-completed', { detail: { workout: workoutPayload } }));
+      return workoutPayload;
+    } catch (e) {
+      console.warn('[LiveRoomAthleteView] Error al registrar sesión de sala en historial:', e);
+      return null;
+    }
+  },
+
   // ============================================================================
-  // PANTALLA 4: CLASE FINALIZADA (REPORTE Y APAGADO TOTAL)
+  // PANTALLA 4: CLASE FINALIZADA (REPORTE, HISTORIAL Y APAGADO TOTAL)
   // ============================================================================
   async renderFinishedState(container, summaryStats = {}) {
     if (this.liveTimerInterval) {
@@ -709,20 +791,26 @@ export const LiveRoomAthleteView = {
       this.liveTimerInterval = null;
     }
 
+    // Persistir automáticamente esta rutina realizada en la sala dentro del historial del usuario
+    const recordedWorkout = await this.recordRoomWorkoutSession(summaryStats);
+
     const content = container.querySelector('#athlete-room-content');
     if (!content) return;
 
+    const durationMins = Math.round((recordedWorkout?.duration_seconds || 2700) / 60);
+    const calories = recordedWorkout?.total_calories || 280;
+
     content.innerHTML = `
-      <div class="card glass-card text-center" style="max-width: 600px; margin: 0 auto; padding: 48px 24px; border-radius: 16px; border: 1px solid rgba(16, 185, 129, 0.4);">
+      <div class="card glass-card text-center" style="max-width: 620px; margin: 0 auto; padding: 48px 24px; border-radius: 16px; border: 1px solid rgba(16, 185, 129, 0.4);">
         <div style="font-size: 64px; margin-bottom: 16px;">🏆</div>
         
         <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 13px; padding: 6px 14px; margin-bottom: 16px; display: inline-block;">
-          SESIÓN COMPLETADA
+          SESIÓN REGISTRADA EN TU HISTORIAL
         </span>
 
         <h2 style="font-size: 26px; font-weight: 800; margin: 0 0 10px;">¡Gran Trabajo en la Clase!</h2>
         <p style="color: var(--color-text-muted); font-size: 14px; margin-bottom: 24px;">
-          Tu asistencia ha sido registrada y tu entrenador ha recolectado las métricas de la clase. Todas las transmisiones de cámara han sido apagadas y liberadas.
+          Esta rutina dirigida ha quedado guardada en tu <strong>Historial de Actividades</strong> para acompañar tu evolución. Todas las cámaras y conexiones han sido apagadas y liberadas con éxito.
         </p>
 
         <div style="background: rgba(15, 23, 42, 0.6); padding: 18px; border-radius: 12px; margin-bottom: 24px; text-align: left; font-size: 14px;">
@@ -731,24 +819,31 @@ export const LiveRoomAthleteView = {
             <strong style="color: var(--color-text-main);">${this.activeClass?.title || 'Entrenamiento'}</strong>
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: var(--color-text-muted);">Entrenador:</span>
+            <span style="color: var(--color-text-muted);">Entrenador a cargo:</span>
             <strong style="color: var(--color-primary-light);">${this.activeClass?.trainer_name || 'Entrenador'}</strong>
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <span style="color: var(--color-text-muted);">Tu Modalidad:</span>
-            <span>${this.currentAttendee?.mode === 'remote' ? '🌐 Remoto' : '📍 Presencial'}</span>
+            <span>${this.currentAttendee?.mode === 'remote' ? '🌐 Remoto (Videocámara)' : '📍 Presencial (En sala)'}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: var(--color-text-muted);">Métricas Registradas:</span>
+            <strong style="color: #38bdf8;">⏱️ ${durationMins} min · 🔥 ${calories} kcal</strong>
           </div>
           <div style="display: flex; justify-content: space-between;">
             <span style="color: var(--color-text-muted);">Estado:</span>
-            <span style="color: #34d399; font-weight: 700;">✅ Asistencia Computada al 100%</span>
+            <span style="color: #34d399; font-weight: 700;">✅ Asistencia e Historial Computados al 100%</span>
           </div>
         </div>
 
-        <div style="display: flex; gap: 12px; justify-content: center;">
-          <button class="btn btn-primary btn-glow" id="btn-back-to-rooms">
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <a href="#history" class="btn btn-primary btn-glow" style="text-decoration: none;">
+            📈 Ver en Mi Historial de Actividades
+          </a>
+          <button class="btn btn-secondary" id="btn-back-to-rooms">
             Ver Otras Salas
           </button>
-          <a href="#dashboard" class="btn btn-secondary">
+          <a href="#dashboard" class="btn btn-secondary" style="text-decoration: none;">
             Ir al Inicio
           </a>
         </div>

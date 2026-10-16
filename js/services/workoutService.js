@@ -350,9 +350,9 @@ class WorkoutService {
             exVolume += vol;
             const oneRm = Biometrics.calculate1RM(w, r);
             if (oneRm > exBest1RM) exBest1RM = oneRm;
-          } else if (ex.type === 'cardio') {
-            const mins = parseFloat(set.duration_minutes) || 10;
-            const cals = Biometrics.calculateCardioCalories(ex.metValue || 8.0, userWeight, mins);
+          } else if (ex.type === 'cardio' || ex.type === 'duration' || ex.category === 'Baile & Ritmos') {
+            const setDurationMins = (parseFloat(set.duration_seconds) || workout.config?.workSeconds || 45) / 60;
+            const cals = Biometrics.calculateCardioCalories(ex.metValue || 6.5, userWeight, setDurationMins);
             exCalories += cals;
           }
         }
@@ -360,19 +360,27 @@ class WorkoutService {
 
       ex.total_volume_kg = exVolume;
       ex.best_1rm = exBest1RM;
+      ex.calories_burned = Math.round(exCalories);
 
       totalVolumeKg += exVolume;
-      if (ex.type === 'cardio') {
+      if (ex.type === 'cardio' || ex.type === 'duration' || ex.category === 'Baile & Ritmos') {
         totalCalories += exCalories;
       }
     }
 
-    // Calorías de la porción de fuerza / tiempo global
-    const strengthCalories = Biometrics.calculateStrengthCalories(userWeight, durationMins, totalSets, true);
-    totalCalories += strengthCalories;
+    // Calorías globales según tipo de disciplina
+    if (workout.category === 'Baile & Ritmos' || workout.category === 'Cardio' || workout.category === 'Movilidad') {
+      const avgMet = workout.exercises && workout.exercises.length > 0
+        ? workout.exercises.reduce((sum, e) => sum + (e.metValue || 6.5), 0) / workout.exercises.length
+        : 6.5;
+      totalCalories = Math.round(Biometrics.calculateCardioCalories(avgMet, userWeight, durationMins));
+    } else {
+      const strengthCalories = Biometrics.calculateStrengthCalories(userWeight, durationMins, totalSets, true);
+      totalCalories += strengthCalories;
+    }
 
     workout.total_volume_kg = totalVolumeKg;
-    workout.total_calories = Math.round(totalCalories);
+    workout.total_calories = Math.max(15, Math.round(totalCalories));
 
     // 1. Guardar la sesión principal en IndexedDB y cola de Supabase
     const sessionPayload = {
