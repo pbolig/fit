@@ -3358,6 +3358,63 @@ body.auth-locked .app-main {
   box-shadow: 0 0 14px rgba(236, 72, 153, 0.4) !important;
 }
 
+/* --- ESTACIONES DE MÚSICA LIBRE (ROYALTY-FREE) --- */
+.music-card-workout {
+  background: radial-gradient(circle at top left, rgba(0, 242, 254, 0.09) 0%, rgba(15, 23, 42, 0.88) 75%) !important;
+  border: 1px solid rgba(0, 242, 254, 0.3) !important;
+}
 
+.station-pick-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
 
+.station-pick-card:hover {
+  background: rgba(0, 242, 254, 0.1);
+  border-color: rgba(0, 242, 254, 0.4);
+  transform: translateY(-2px);
+}
 
+.station-pick-card.active-station {
+  background: rgba(0, 242, 254, 0.22) !important;
+  border-color: #00f2fe !important;
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.4) !important;
+}
+
+.station-live-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dock-workout-theme {
+  border-color: rgba(0, 242, 254, 0.35) !important;
+}
+
+.dock-soundwave-cyan span {
+  background: #00f2fe !important;
+}
+
+.dock-play-btn-cyan {
+  background: linear-gradient(135deg, #00f2fe 0%, #0284c7 100%) !important;
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.35) !important;
+}
+
+.dock-vol-slider-cyan {
+  accent-color: #00f2fe !important;
+}

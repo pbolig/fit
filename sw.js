@@ -2,7 +2,7 @@
 // FITPULSE - SERVICE WORKER (OFFLINE PWA CACHE)
 // ==============================================================================
 
-const CACHE_NAME = 'fitpulse-v1.1.0';
+const CACHE_NAME = 'fitpulse-v1.1.1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -23,6 +23,7 @@ const ASSETS_TO_CACHE = [
   './js/services/workoutService.js',
   './js/services/routineService.js',
   './js/services/classRoomService.js',
+  './js/services/danceAudioService.js',
   './js/ui/router.js',
   './js/ui/toast.js',
   './js/ui/charts.js',

@@ -1,14 +1,19 @@
 // ==============================================================================
-// FITPULSE - DANCE AUDIO & RHYTHMIC BEAT ENGINE
-// Servicio de audio especializado para actividades de baile y ritmos:
-// 1. Sintetizador nativo Web Audio API de percusión y compases (100% offline, cero dependencias).
-// 2. Integrador de playlists curadas por estilo (YouTube / Streaming).
-// 3. Reproductor nativo de archivos de audio locales (MP3, M4A, WAV).
-// 4. Control de volumen independiente y atenuación automática (Audio Ducking) con el cronómetro.
+// FITPULSE - WORKOUT & DANCE AUDIO ENGINE (100% LEGAL & ROYALTY-FREE)
+// Servicio de audio dual para entrenamientos:
+// 1. MODO GENERAL / LIBRE (Fuerza, Cardio, Funcional, etc.):
+//    - Música motivacional continua en streaming (EDM, Heavy Rock, Synthwave, Dubstep, Lo-Fi Chill).
+//    - Radios en vivo 100% libres de derechos de autor (Open streams, cero infracción legal).
+//    - Reproducción de MP3 local propio sin datos móviles.
+//    - CERO conteo de pasos ni taps percusivos (música libre y transparente).
+// 2. MODO BAILE & RITMOS (Bachata, Salsa, Merengue, Reggaeton):
+//    - Sintetizador nativo Web Audio API de percusión con compás de 8 tiempos estricto y taps.
+// 3. Atenuación automática (Audio Ducking) con alertas del cronómetro.
 // ==============================================================================
 
 import { Sound } from '../ui/sound.js';
 
+// Ritmos especializados para Baile
 export const DANCE_RHYTHMS = {
   bachata: {
     id: 'bachata',
@@ -94,14 +99,97 @@ export const DANCE_RHYTHMS = {
   }
 };
 
+// Estaciones de Música Libre (100% Royalty-Free / Legales / En Vivo / MP3 Nativo)
+export const FREE_MUSIC_STATIONS = [
+  {
+    id: 'beatblender',
+    name: '⚡ EDM & Gym Energy',
+    genre: 'Deep House & Club Hits',
+    streamUrl: 'https://ice1.somafm.com/beatblender-128-mp3',
+    icon: '⚡',
+    description: 'Ritmos continuos y pulsantes para cardio, HIIT, crossfit y circuitos dinámicos.'
+  },
+  {
+    id: 'metal',
+    name: '🎸 Heavy Rock & Powerlifting',
+    genre: 'Heavy Metal & Hard Rock',
+    streamUrl: 'https://ice1.somafm.com/metal-128-mp3',
+    icon: '🎸',
+    description: 'Riffs pesados y pura adrenalina para press de banca, sentadillas y récords de fuerza.'
+  },
+  {
+    id: 'vaporwaves',
+    name: '🌆 Synthwave & Retrowave',
+    genre: 'Chillwave & Synth Electro',
+    streamUrl: 'https://ice1.somafm.com/vaporwaves-128-mp3',
+    icon: '🌆',
+    description: 'Sonoridades ochentosas y enfoque mental profundo para hipertrofia y concentración.'
+  },
+  {
+    id: 'dubstep',
+    name: '🔥 Bass & Dubstep Energy',
+    genre: 'Bassline & Dubstep',
+    streamUrl: 'https://ice1.somafm.com/dubstep-128-mp3',
+    icon: '🔥',
+    description: 'Potencia de graves de alta intensidad para series demandantes y máximo esfuerzo.'
+  },
+  {
+    id: 'defcon',
+    name: '💻 Cyber Beats & Techno',
+    genre: 'Electronic & Industrial',
+    streamUrl: 'https://ice1.somafm.com/defcon-128-mp3',
+    icon: '💻',
+    description: 'Ritmo constante e implacable para mantener pulsaciones estables y enfoque absoluto.'
+  },
+  {
+    id: 'cliqhop',
+    name: '🎧 Electro & Breakbeat',
+    genre: 'IDM & Crisp Beats',
+    streamUrl: 'https://ice1.somafm.com/cliqhop-128-mp3',
+    icon: '🎧',
+    description: 'Bases percusivas modernas para agilidad, coordinación y entrenamiento funcional.'
+  },
+  {
+    id: 'groovesalad',
+    name: '☕ Lo-Fi & Chill Recovery',
+    genre: 'Downtempo & Ambient Beats',
+    streamUrl: 'https://ice1.somafm.com/groovesalad-128-mp3',
+    icon: '☕',
+    description: 'Vibras suaves para respiración, yoga, estiramientos y vuelta a la calma post-entreno.'
+  }
+];
+
+export const FREE_STREAMING_PLAYLISTS = [
+  {
+    id: 'ncs_workout',
+    title: 'NoCopyrightSounds (NCS) - Best Workout Gaming & Gym Mix',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/videoseries?list=PLRBp0Fe2Gpgm0wf4112Xg707lGWOi8hV5',
+    source: 'youtube'
+  },
+  {
+    id: 'lofi_gym',
+    title: 'Lo-Fi Chill Beats for Focus & Lifting (Royalty-Free)',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/videoseries?list=PL4fGSIFgk5H2uR7lJ0f8Y3t1wQzV8K9P0',
+    source: 'youtube'
+  },
+  {
+    id: 'epic_motivation',
+    title: 'Epic Cinematic & Workout Motivation (Royalty-Free)',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/videoseries?list=PLRBp0Fe2GpgnZOm5rCopMAOYhZCPoUyO5',
+    source: 'youtube'
+  }
+];
+
 class DanceAudioService {
   constructor() {
-    this.currentMode = 'synth'; // 'synth' | 'streaming' | 'local_file'
+    this.currentMode = 'radio'; // 'radio' | 'synth' | 'streaming' | 'local_file' | 'none'
     this.activeRhythm = 'bachata';
+    this.activeStationId = 'beatblender';
     this.bpm = 128;
     this.isPlaying = false;
     this.volume = 0.75;
     this.isDucked = false;
+    this.isDanceMode = false;
 
     // Web Audio sintetizador nativo
     this.audioCtx = null;
@@ -114,7 +202,10 @@ class DanceAudioService {
     this.localFileUrl = null;
     this.localFileName = '';
 
-    // Streaming activo
+    // Reproductor de radio streaming (MP3 nativo royalty-free)
+    this.streamAudioEl = null;
+
+    // Streaming activo / YouTube
     this.customStreamingUrl = '';
     this.selectedPlaylistIndex = 0;
 
@@ -145,18 +236,14 @@ class DanceAudioService {
   }
 
   // ============================================================================
-  // 1. SINTETIZADOR RÍTMICO NATIVO WEB AUDIO (100% OFFLINE)
+  // 1. SINTETIZADOR RÍTMICO NATIVO WEB AUDIO (100% OFFLINE PARA BAILE)
   // ============================================================================
 
-  /**
-   * Dispara un golpe sintético de percusión de alta fidelidad
-   */
   _triggerPercussion(type, time, intensity = 1.0) {
     const ctx = this.getAudioContext();
     if (!ctx) return;
 
     if (type === 'bongo_high') {
-      // Bongó macho (tiempos 1, 2, 3, 5, 6, 7)
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
@@ -171,7 +258,6 @@ class DanceAudioService {
       osc.start(time);
       osc.stop(time + 0.09);
     } else if (type === 'bongo_slap_tap') {
-      // Slap acentuado de Bachata en los tiempos 4 y 8 (TAP)
       const osc = ctx.createOscillator();
       const oscGain = ctx.createGain();
       osc.type = 'triangle';
@@ -186,13 +272,10 @@ class DanceAudioService {
       osc.start(time);
       osc.stop(time + 0.15);
 
-      // Pequeño chasquido de tap con filtro
       this._triggerNoise(time, 0.04, 3500, 0.25 * intensity);
     } else if (type === 'guira_scrape') {
-      // Rasgueo rítmico de güira metálica
       this._triggerNoise(time, 0.06, 6500, 0.18 * intensity);
     } else if (type === 'bass_thump') {
-      // Tumbao de bajo grave
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
@@ -207,7 +290,6 @@ class DanceAudioService {
       osc.start(time);
       osc.stop(time + 0.19);
     } else if (type === 'clave') {
-      // Sonido de clave de madera (Salsa)
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
@@ -254,9 +336,6 @@ class DanceAudioService {
     noise.stop(time + duration);
   }
 
-  /**
-   * Ejecuta un paso del compás según el ritmo seleccionado
-   */
   _playStep(stepIndex) {
     if (this.currentMode === 'synth') {
       const ctx = this.getAudioContext();
@@ -264,11 +343,6 @@ class DanceAudioService {
         const now = ctx.currentTime;
 
         if (this.activeRhythm === 'bachata') {
-          // Compás de 8 tiempos de Bachata:
-          // Tiempos 0, 1, 2 = 1, 2, 3 (Bongó agudo + Güira + Bajo)
-          // Tiempo 3 = 4 TAP (Slap acentuado + Bajo acentuado)
-          // Tiempos 4, 5, 6 = 5, 6, 7 (Bongó agudo + Güira + Bajo)
-          // Tiempo 7 = 8 TAP (Slap acentuado + Bajo acentuado)
           const isTap = stepIndex === 3 || stepIndex === 7;
 
           if (isTap) {
@@ -282,22 +356,18 @@ class DanceAudioService {
             }
           }
 
-          // Rasgueo intermedio de contratiempo de güira
           const halfStepTime = now + (60 / this.bpm / 2);
           this._triggerPercussion('guira_scrape', halfStepTime, 0.45);
         } else if (this.activeRhythm === 'salsa') {
-          // Clave 2-3 de salsa y congas
           const isClave = stepIndex === 0 || stepIndex === 2 || stepIndex === 3 || stepIndex === 5 || stepIndex === 6;
           if (isClave) this._triggerPercussion('clave', now, 0.85);
           this._triggerPercussion('bongo_high', now, 0.75);
           if (stepIndex === 3 || stepIndex === 7) this._triggerPercussion('bass_thump', now, 1.0);
         } else if (this.activeRhythm === 'merengue') {
-          // Marcha enérgica de merengue
           this._triggerPercussion('guira_scrape', now, 1.0);
           if (stepIndex % 2 === 0) this._triggerPercussion('bongo_high', now, 0.9);
           else this._triggerPercussion('bass_thump', now, 1.1);
         } else {
-          // Reggaeton / Dembow
           if (stepIndex === 0 || stepIndex === 4) this._triggerPercussion('bass_thump', now, 1.2);
           if (stepIndex === 3 || stepIndex === 6) this._triggerPercussion('bongo_slap_tap', now, 1.0);
           this._triggerPercussion('guira_scrape', now, 0.4);
@@ -305,7 +375,6 @@ class DanceAudioService {
       }
     }
 
-    // Notificar al oyente del compás visual (siempre ordenado estrictamente del 1 al 8)
     const beatNumber = (stepIndex % 8) + 1;
     window.dispatchEvent(new CustomEvent('fitpulse:dance-beat', {
       detail: {
@@ -318,48 +387,101 @@ class DanceAudioService {
   }
 
   // ============================================================================
-  // 2. CONTROL GLOBAL DE REPRODUCCIÓN (PLAY / PAUSE / VOLUMEN)
+  // 2. STREAMING EN VIVO DE ESTACIONES LIBRES (ROYALTY-FREE)
   // ============================================================================
 
-  play(rhythmId = null) {
-    if (rhythmId && DANCE_RHYTHMS[rhythmId]) {
-      this.activeRhythm = rhythmId;
-      this.bpm = DANCE_RHYTHMS[rhythmId].defaultBpm;
+  _playStationStream() {
+    const station = this.getActiveStationData();
+    if (!station) return;
+
+    if (!this.streamAudioEl) {
+      this.streamAudioEl = new Audio();
+      this.streamAudioEl.crossOrigin = 'anonymous';
     }
 
-    // Cancelar cualquier temporizador de compás en ejecución previa
-    if (this.beatInterval) {
-      clearInterval(this.beatInterval);
-      this.beatInterval = null;
+    if (this.streamAudioEl.src !== station.streamUrl) {
+      this.streamAudioEl.src = station.streamUrl;
     }
+    this.streamAudioEl.volume = this.volume;
+    this.streamAudioEl.play().catch((e) => {
+      console.warn('FitPulse Audio: esperando interacción o reproduciendo stream...', e);
+    });
+  }
 
-    this.isPlaying = true;
+  // ============================================================================
+  // 3. CONTROL GLOBAL DE REPRODUCCIÓN (PLAY / PAUSE / VOLUMEN)
+  // ============================================================================
 
-    if (this.currentMode === 'synth') {
-      this.getAudioContext();
-    } else if (this.currentMode === 'local_file') {
-      if (this.localAudioEl) {
-        this.localAudioEl.volume = this.volume;
-        this.localAudioEl.play().catch((e) => console.warn('Error al reproducir audio local:', e));
+  play(targetId = null) {
+    if (this.isDanceMode) {
+      // MODO BAILE: Sintetizador Web Audio de 8 tiempos
+      if (targetId && DANCE_RHYTHMS[targetId]) {
+        this.activeRhythm = targetId;
+        this.bpm = DANCE_RHYTHMS[targetId].defaultBpm;
+      }
+
+      if (this.beatInterval) {
+        clearInterval(this.beatInterval);
+        this.beatInterval = null;
+      }
+
+      this.isPlaying = true;
+
+      if (this.currentMode === 'synth') {
+        this.getAudioContext();
+      } else if (this.currentMode === 'local_file') {
+        if (this.localAudioEl) {
+          this.localAudioEl.volume = this.volume;
+          this.localAudioEl.play().catch((e) => console.warn('Error al reproducir audio local:', e));
+        }
+      }
+
+      const stepDurationMs = (60 / this.bpm) * 1000;
+      this.currentBeatIndex = 0;
+      this._playStep(this.currentBeatIndex);
+
+      this.beatInterval = setInterval(() => {
+        if (!this.isPlaying) return;
+        this.currentBeatIndex = (this.currentBeatIndex + 1) % 8;
+        this._playStep(this.currentBeatIndex);
+      }, stepDurationMs);
+    } else {
+      // MODO ENTRENAMIENTO GENERAL / LIBRE (Fuerza, Cardio, etc.):
+      // CERO conteo de pasos, CERO compás de 8 tiempos, CERO taps.
+      if (this.beatInterval) {
+        clearInterval(this.beatInterval);
+        this.beatInterval = null;
+      }
+
+      if (targetId && FREE_MUSIC_STATIONS.some((s) => s.id === targetId)) {
+        this.activeStationId = targetId;
+      }
+
+      if (this.currentMode === 'none') {
+        this.isPlaying = false;
+        return;
+      }
+
+      this.isPlaying = true;
+
+      if (this.currentMode === 'radio') {
+        this._playStationStream();
+      } else if (this.currentMode === 'local_file') {
+        if (this.localAudioEl) {
+          this.localAudioEl.volume = this.volume;
+          this.localAudioEl.play().catch((e) => console.warn('Error al reproducir audio local:', e));
+        }
       }
     }
 
-    // Duración de cada tiempo según el BPM del ritmo (ej. 128 BPM = ~468.75ms)
-    const stepDurationMs = (60 / this.bpm) * 1000;
-    this.currentBeatIndex = 0;
-
-    // Disparar inmediatamente el primer tiempo del compás (1)
-    this._playStep(this.currentBeatIndex);
-
-    // Ciclo estricto y ordenado: 1 -> 2 -> 3 -> 4 TAP -> 5 -> 6 -> 7 -> 8 TAP
-    this.beatInterval = setInterval(() => {
-      if (!this.isPlaying) return;
-      this.currentBeatIndex = (this.currentBeatIndex + 1) % 8;
-      this._playStep(this.currentBeatIndex);
-    }, stepDurationMs);
-
     window.dispatchEvent(new CustomEvent('fitpulse:dance-audio-state', {
-      detail: { isPlaying: true, mode: this.currentMode, rhythm: this.activeRhythm }
+      detail: {
+        isPlaying: this.isPlaying,
+        mode: this.currentMode,
+        rhythm: this.activeRhythm,
+        station: this.activeStationId,
+        isDance: this.isDanceMode
+      }
     }));
   }
 
@@ -369,24 +491,37 @@ class DanceAudioService {
       clearInterval(this.beatInterval);
       this.beatInterval = null;
     }
+    if (this.streamAudioEl) {
+      this.streamAudioEl.pause();
+    }
     if (this.localAudioEl) {
       this.localAudioEl.pause();
     }
     window.dispatchEvent(new CustomEvent('fitpulse:dance-audio-state', {
-      detail: { isPlaying: false, mode: this.currentMode, rhythm: this.activeRhythm }
+      detail: {
+        isPlaying: false,
+        mode: this.currentMode,
+        rhythm: this.activeRhythm,
+        station: this.activeStationId,
+        isDance: this.isDanceMode
+      }
     }));
   }
 
   stop() {
     this.pause();
     this.currentBeatIndex = 0;
+    if (this.streamAudioEl) {
+      this.streamAudioEl.pause();
+      this.streamAudioEl.src = '';
+    }
   }
 
-  togglePlay(rhythmId = null) {
+  togglePlay(targetId = null) {
     if (this.isPlaying) {
       this.pause();
     } else {
-      this.play(rhythmId);
+      this.play(targetId);
     }
     return this.isPlaying;
   }
@@ -399,11 +534,14 @@ class DanceAudioService {
     if (this.localAudioEl) {
       this.localAudioEl.volume = this.volume;
     }
+    if (this.streamAudioEl) {
+      this.streamAudioEl.volume = this.volume;
+    }
     window.dispatchEvent(new CustomEvent('fitpulse:dance-volume-changed', { detail: { volume: this.volume } }));
   }
 
   /**
-   * Atenuación automática (Audio Ducking): baja el volumen un 60% durante beeps/alertas
+   * Atenuación automática (Audio Ducking): baja el volumen un 65% durante beeps/alertas
    */
   duckAudio(durationMs = 1200) {
     if (this.isDucked) return;
@@ -416,6 +554,9 @@ class DanceAudioService {
     if (this.localAudioEl) {
       this.localAudioEl.volume = targetLowVol;
     }
+    if (this.streamAudioEl) {
+      this.streamAudioEl.volume = targetLowVol;
+    }
 
     setTimeout(() => {
       if (this.masterGain && this.audioCtx) {
@@ -424,12 +565,15 @@ class DanceAudioService {
       if (this.localAudioEl) {
         this.localAudioEl.volume = this.volume;
       }
+      if (this.streamAudioEl) {
+        this.streamAudioEl.volume = this.volume;
+      }
       this.isDucked = false;
     }, durationMs);
   }
 
   // ============================================================================
-  // 3. ARCHIVOS LOCALES (MP3 PROPIO DEL ATLETA)
+  // 4. ARCHIVOS LOCALES (MP3 PROPIO DEL ATLETA)
   // ============================================================================
 
   loadLocalFile(file) {
@@ -453,20 +597,39 @@ class DanceAudioService {
   }
 
   // ============================================================================
-  // 4. METADATOS Y MÉTODOS AUXILIARES
+  // 5. METADATOS Y MÉTODOS AUXILIARES
   // ============================================================================
 
   setMode(mode) {
-    if (['synth', 'streaming', 'local_file'].includes(mode)) {
+    if (['radio', 'synth', 'streaming', 'local_file', 'none'].includes(mode)) {
       if (this.isPlaying) this.pause();
       this.currentMode = mode;
+      if (mode === 'none') {
+        this.stop();
+      }
     }
+  }
+
+  setStation(stationId) {
+    if (stationId && FREE_MUSIC_STATIONS.some((s) => s.id === stationId)) {
+      this.activeStationId = stationId;
+      if (this.isPlaying && this.currentMode === 'radio') {
+        this._playStationStream();
+      }
+    }
+  }
+
+  playStation(stationId) {
+    this.setStation(stationId);
+    this.currentMode = 'radio';
+    this.isDanceMode = false;
+    this.play();
   }
 
   setBpm(newBpm) {
     this.bpm = Math.max(60, Math.min(240, parseInt(newBpm, 10) || 128));
     if (this.isPlaying && this.currentMode === 'synth') {
-      this.play(); // Reiniciar con el nuevo tempo
+      this.play();
     }
   }
 
@@ -477,6 +640,15 @@ class DanceAudioService {
   getAllRhythms() {
     return Object.values(DANCE_RHYTHMS);
   }
+
+  getActiveStationData() {
+    return FREE_MUSIC_STATIONS.find((s) => s.id === this.activeStationId) || FREE_MUSIC_STATIONS[0];
+  }
+
+  getAllStations() {
+    return FREE_MUSIC_STATIONS;
+  }
 }
 
 export const danceAudioService = new DanceAudioService();
+export const workoutAudioService = danceAudioService;

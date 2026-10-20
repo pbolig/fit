@@ -15,8 +15,7 @@ import { routineService } from '../../services/routineService.js';
 import { Sound } from '../sound.js';
 import { Toast } from '../toast.js';
 import { router } from '../router.js';
-import { generateUUID } from '../../config.js';
-import { danceAudioService, DANCE_RHYTHMS } from '../../services/danceAudioService.js';
+import { danceAudioService, DANCE_RHYTHMS, FREE_MUSIC_STATIONS, FREE_STREAMING_PLAYLISTS } from '../../services/danceAudioService.js';
 
 export const WorkoutView = {
   // Estado local del controlador de fases y configuración de la rutina activa
@@ -129,72 +128,188 @@ export const WorkoutView = {
     return danceAudioService.activeRhythm || 'bachata';
   },
 
-  // Genera el HTML de la consola de configuración musical para Baile & Ritmos
+  // Genera el HTML de la consola de configuración musical para Baile o Entrenamiento General
   renderDanceMusicSetupCard() {
     const isDance = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((e) => e.category === 'Baile & Ritmos');
     const currentMode = danceAudioService.currentMode;
-    const activeRhythm = danceAudioService.activeRhythm;
-    const allRhythms = danceAudioService.getAllRhythms();
-    const activeRhythmData = danceAudioService.getActiveRhythmData();
+    const isPlaying = danceAudioService.isPlaying;
+
+    if (isDance) {
+      // MODO BAILE: Sintetizador Web Audio de 8 tiempos + taps
+      const activeRhythm = danceAudioService.activeRhythm;
+      const allRhythms = danceAudioService.getAllRhythms();
+      const activeRhythmData = danceAudioService.getActiveRhythmData();
+
+      return `
+        <div id="dance-music-setup-wrapper" class="dance-music-setup-card music-card-dance">
+          <div class="music-setup-header">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <div class="card-icon-box" style="background: rgba(236, 72, 153, 0.2); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.4); width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              </div>
+              <div>
+                <h3 style="margin: 0; font-size: 0.96rem; font-weight: 700; color: #fff;">Consola de Audio Rítmico (Baile)</h3>
+                <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary);">Compás sincronizado de 8 tiempos con taps acústicos</p>
+              </div>
+            </div>
+            <span class="badge-tag" style="background: rgba(236, 72, 153, 0.2); color: #f472b6; border-color: rgba(236, 72, 153, 0.4); font-size: 0.72rem;">
+              ✨ Compás de 8 Tiempos
+            </span>
+          </div>
+
+          <!-- TABS DE ORIGEN MUSICAL -->
+          <div class="music-source-tabs">
+            <button type="button" class="music-tab-btn ${currentMode === 'synth' ? 'active' : ''}" data-music-mode="synth">
+              🥁 Bases de Percusión (8 Tiempos)
+            </button>
+            <button type="button" class="music-tab-btn ${currentMode === 'local_file' ? 'active' : ''}" data-music-mode="local_file">
+              📁 Mi Música (MP3 Local)
+            </button>
+            <button type="button" class="music-tab-btn ${currentMode === 'streaming' ? 'active' : ''}" data-music-mode="streaming">
+              🎬 Playlists Baile (YouTube)
+            </button>
+          </div>
+
+          <!-- PANELES DE CONFIGURACIÓN -->
+          <div class="music-panel-content">
+            <div class="music-tab-pane" id="pane-music-synth" style="display: ${currentMode === 'synth' ? 'block' : 'none'};">
+              <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.45rem;">
+                Seleccionar Ritmo de Percusión Sintética:
+              </label>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-bottom: 0.65rem;">
+                ${allRhythms.map((r) => `
+                  <button type="button" class="rhythm-pick-card ${r.id === activeRhythm ? 'active-rhythm' : ''}" data-rhythm-id="${r.id}">
+                    <div style="font-size: 1.15rem;">${r.icon}</div>
+                    <div style="font-weight: 700; font-size: 0.82rem; color: #fff;">${r.name.split(' ')[0]}</div>
+                    <div style="font-size: 0.7rem; color: #f472b6;">${r.defaultBpm} BPM</div>
+                  </button>
+                `).join('')}
+              </div>
+              <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0;" id="txt-synth-rhythm-desc">
+                ℹ️ <strong>${activeRhythmData.name}:</strong> ${activeRhythmData.description}
+              </p>
+            </div>
+
+            <div class="music-tab-pane" id="pane-music-local_file" style="display: ${currentMode === 'local_file' ? 'block' : 'none'};">
+              <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
+                Cargar Archivo de Audio (MP3, WAV, M4A):
+              </label>
+              <input type="file" id="input-local-dance-mp3" accept="audio/*" class="input-field" style="padding: 0.4rem; font-size: 0.8rem;">
+              <p style="font-size: 0.76rem; color: #38ef7d; margin-top: 0.4rem; margin-bottom: 0;" id="txt-local-audio-name">
+                ${danceAudioService.localFileName ? `📁 Archivo seleccionado: <strong>${danceAudioService.localFileName}</strong>` : '💡 Cero consumo de datos móviles con reproducción en bucle.'}
+              </p>
+            </div>
+
+            <div class="music-tab-pane" id="pane-music-streaming" style="display: ${currentMode === 'streaming' ? 'block' : 'none'};">
+              <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
+                Playlists Recomendadas (${activeRhythmData.name.split(' ')[0]}):
+              </label>
+              <div style="display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.65rem;">
+                ${(activeRhythmData.streamingPlaylists || []).map((pl, idx) => `
+                  <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; cursor: pointer; background: rgba(255,255,255,0.03); padding: 0.4rem 0.6rem; border-radius: 4px; border: 1px solid var(--border-subtle);">
+                    <input type="radio" name="selected-streaming-pl" value="${idx}" ${idx === danceAudioService.selectedPlaylistIndex ? 'checked' : ''}>
+                    <span>🎬 <strong>${pl.title}</strong></span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTROLES RÁPIDOS DE PRUEBA Y VOLUMEN -->
+          <div class="music-quick-controls">
+            <button type="button" id="btn-preview-dance-audio" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.4rem;">
+              <span id="preview-dance-audio-icon">${isPlaying ? '⏸️' : '▶️'}</span>
+              <span id="preview-dance-audio-txt">${isPlaying ? 'Pausar Sonido' : 'Probar Sonido'}</span>
+            </button>
+            <div style="display: flex; align-items: center; gap: 0.45rem; margin-left: auto;">
+              <span style="font-size: 0.78rem; color: var(--text-secondary);">🔊 Volumen:</span>
+              <input type="range" id="range-dance-preview-volume" min="0" max="1" step="0.05" value="${danceAudioService.volume}" class="dock-vol-slider" style="width: 85px;">
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // MODO GENERAL (Fuerza, Cardio, etc.): Música motivacional 100% legal & royalty-free, sin conteo de pasos ni taps
+    const activeStation = danceAudioService.getActiveStationData();
+    const allStations = danceAudioService.getAllStations();
+    const effectiveMode = (currentMode === 'synth') ? 'radio' : currentMode;
 
     return `
-      <div id="dance-music-setup-wrapper" class="dance-music-setup-card" style="display: ${isDance ? 'block' : 'none'};">
+      <div id="dance-music-setup-wrapper" class="dance-music-setup-card music-card-workout">
         <div class="music-setup-header">
           <div style="display: flex; align-items: center; gap: 0.6rem;">
-            <div class="card-icon-box" style="background: rgba(236, 72, 153, 0.2); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.4); width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <div class="card-icon-box" style="background: rgba(0, 242, 254, 0.15); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.35); width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             </div>
             <div>
-              <h3 style="margin: 0; font-size: 0.96rem; font-weight: 700; color: #fff;">Consola de Audio Rítmico</h3>
-              <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary);">Música y bases percusivas sincronizadas al cronómetro</p>
+              <h3 style="margin: 0; font-size: 0.96rem; font-weight: 700; color: #fff;">Música Motivacional de Entrenamiento</h3>
+              <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary);">100% libre de derechos de autor y legal · Música continua para tus series (sin conteo de pasos)</p>
             </div>
           </div>
-          <span class="badge-tag" style="background: rgba(236, 72, 153, 0.2); color: #f472b6; border-color: rgba(236, 72, 153, 0.4); font-size: 0.72rem;">
-            ✨ Compás de 8 Tiempos
+          <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.35); font-size: 0.72rem;">
+            🛡️ Royalty-Free & Libre
           </span>
         </div>
 
-        <!-- TABS DE ORIGEN MUSICAL -->
+        <!-- TABS DE MÚSICA GENERAL -->
         <div class="music-source-tabs">
-          <button type="button" class="music-tab-btn ${currentMode === 'synth' ? 'active' : ''}" data-music-mode="synth">
-            🥁 Bases Offline (Web Audio)
+          <button type="button" class="music-tab-btn ${effectiveMode === 'radio' ? 'active' : ''}" data-music-mode="radio">
+            📻 Radios en Vivo Libres (Royalty-Free)
           </button>
-          <button type="button" class="music-tab-btn ${currentMode === 'streaming' ? 'active' : ''}" data-music-mode="streaming">
-            🎧 Playlists & Streaming
-          </button>
-          <button type="button" class="music-tab-btn ${currentMode === 'local_file' ? 'active' : ''}" data-music-mode="local_file">
+          <button type="button" class="music-tab-btn ${effectiveMode === 'local_file' ? 'active' : ''}" data-music-mode="local_file">
             📁 Mi Música (MP3 Local)
+          </button>
+          <button type="button" class="music-tab-btn ${effectiveMode === 'streaming' ? 'active' : ''}" data-music-mode="streaming">
+            🎬 Playlists NCS (YouTube)
+          </button>
+          <button type="button" class="music-tab-btn ${effectiveMode === 'none' ? 'active' : ''}" data-music-mode="none">
+            🔇 Sin Música
           </button>
         </div>
 
         <!-- PANELES DE CONFIGURACIÓN -->
         <div class="music-panel-content">
-          <!-- MODO 1: WEB AUDIO OFFLINE NATIVO -->
-          <div class="music-tab-pane" id="pane-music-synth" style="display: ${currentMode === 'synth' ? 'block' : 'none'};">
+          <!-- PANEL 1: RADIOS EN VIVO DIRECTAS (STREAMING MP3 NATIVO) -->
+          <div class="music-tab-pane" id="pane-music-radio" style="display: ${effectiveMode === 'radio' ? 'block' : 'none'};">
             <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.45rem;">
-              Seleccionar Ritmo de Percusión Sintética:
+              Seleccionar Estación en Vivo para tu Rutina:
             </label>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-bottom: 0.65rem;">
-              ${allRhythms.map((r) => `
-                <button type="button" class="rhythm-pick-card ${r.id === activeRhythm ? 'active-rhythm' : ''}" data-rhythm-id="${r.id}">
-                  <div style="font-size: 1.15rem;">${r.icon}</div>
-                  <div style="font-weight: 700; font-size: 0.82rem; color: #fff;">${r.name.split(' ')[0]}</div>
-                  <div style="font-size: 0.7rem; color: #f472b6;">${r.defaultBpm} BPM</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.5rem; margin-bottom: 0.65rem;">
+              ${allStations.map((st) => `
+                <button type="button" class="station-pick-card ${st.id === danceAudioService.activeStationId ? 'active-station' : ''}" data-station-id="${st.id}">
+                  <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <span style="font-size: 1.25rem;">${st.icon}</span>
+                    <span class="station-live-badge">EN VIVO</span>
+                  </div>
+                  <div style="font-weight: 700; font-size: 0.82rem; color: #fff; margin-top: 0.25rem;">${st.name.replace(/^[^\s]+\s/, '')}</div>
+                  <div style="font-size: 0.7rem; color: #38bdf8;">${st.genre}</div>
                 </button>
               `).join('')}
             </div>
-            <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0;" id="txt-synth-rhythm-desc">
-              ℹ️ <strong>${activeRhythmData.name}:</strong> ${activeRhythmData.description}
+            <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0;" id="txt-station-desc">
+              ℹ️ <strong>${activeStation.name}:</strong> ${activeStation.description} (Género: ${activeStation.genre})
             </p>
           </div>
 
-          <!-- MODO 2: STREAMING / YOUTUBE CURADOS -->
-          <div class="music-tab-pane" id="pane-music-streaming" style="display: ${currentMode === 'streaming' ? 'block' : 'none'};">
+          <!-- PANEL 2: ARCHIVO LOCAL -->
+          <div class="music-tab-pane" id="pane-music-local_file" style="display: ${effectiveMode === 'local_file' ? 'block' : 'none'};">
             <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
-              Playlists Recomendadas para Práctica (${activeRhythmData.name.split(' ')[0]}):
+              Cargar Archivo de Audio (MP3, WAV, M4A):
+            </label>
+            <input type="file" id="input-local-dance-mp3" accept="audio/*" class="input-field" style="padding: 0.4rem; font-size: 0.8rem;">
+            <p style="font-size: 0.76rem; color: #38ef7d; margin-top: 0.4rem; margin-bottom: 0;" id="txt-local-audio-name">
+              ${danceAudioService.localFileName ? `📁 Archivo seleccionado: <strong>${danceAudioService.localFileName}</strong>` : '💡 Cero consumo de datos móviles, totalmente privado y reproduce en loop.'}
+            </p>
+          </div>
+
+          <!-- PANEL 3: PLAYLISTS NCS / YOUTUBE -->
+          <div class="music-tab-pane" id="pane-music-streaming" style="display: ${effectiveMode === 'streaming' ? 'block' : 'none'};">
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
+              Playlists Libres de Derechos Recomendadas (NCS & Creative Commons):
             </label>
             <div style="display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.65rem;">
-              ${(activeRhythmData.streamingPlaylists || []).map((pl, idx) => `
+              ${FREE_STREAMING_PLAYLISTS.map((pl, idx) => `
                 <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; cursor: pointer; background: rgba(255,255,255,0.03); padding: 0.4rem 0.6rem; border-radius: 4px; border: 1px solid var(--border-subtle);">
                   <input type="radio" name="selected-streaming-pl" value="${idx}" ${idx === danceAudioService.selectedPlaylistIndex ? 'checked' : ''}>
                   <span>🎬 <strong>${pl.title}</strong></span>
@@ -202,19 +317,15 @@ export const WorkoutView = {
               `).join('')}
             </div>
             <div class="form-group" style="margin-bottom: 0;">
-              <label for="input-custom-stream-url" style="font-size: 0.76rem;">O tu enlace personalizado (YouTube):</label>
+              <label for="input-custom-stream-url" style="font-size: 0.76rem;">O tu enlace propio de YouTube:</label>
               <input type="url" id="input-custom-stream-url" class="input-field" placeholder="https://www.youtube.com/watch?v=..." value="${danceAudioService.customStreamingUrl || ''}" style="font-size: 0.82rem; padding: 0.45rem;">
             </div>
           </div>
 
-          <!-- MODO 3: MI MP3 LOCAL -->
-          <div class="music-tab-pane" id="pane-music-local_file" style="display: ${currentMode === 'local_file' ? 'block' : 'none'};">
-            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.4rem;">
-              Cargar Archivo de Audio (MP3, WAV, M4A):
-            </label>
-            <input type="file" id="input-local-dance-mp3" accept="audio/*" class="input-field" style="padding: 0.4rem; font-size: 0.8rem;">
-            <p style="font-size: 0.76rem; color: #38ef7d; margin-top: 0.4rem; margin-bottom: 0;" id="txt-local-audio-name">
-              ${danceAudioService.localFileName ? `📁 Archivo seleccionado: <strong>${danceAudioService.localFileName}</strong>` : '💡 Cero consumo de datos móviles con reproducción en loop.'}
+          <!-- PANEL 4: SIN MÚSICA -->
+          <div class="music-tab-pane" id="pane-music-none" style="display: ${effectiveMode === 'none' ? 'block' : 'none'};">
+            <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0;">
+              🔇 <strong>Entrenar sin música de fondo:</strong> Solo se escucharán las alertas sonoras atléticas del cronómetro (cuenta regresiva 3, 2, 1, cambio de serie y descanso), permitiéndote escuchar tu app externa de música favorita o el ambiente del gimnasio.
             </p>
           </div>
         </div>
@@ -222,8 +333,8 @@ export const WorkoutView = {
         <!-- CONTROLES RÁPIDOS DE PRUEBA Y VOLUMEN -->
         <div class="music-quick-controls">
           <button type="button" id="btn-preview-dance-audio" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.4rem;">
-            <span id="preview-dance-audio-icon">${danceAudioService.isPlaying ? '⏸️' : '▶️'}</span>
-            <span id="preview-dance-audio-txt">${danceAudioService.isPlaying ? 'Pausar Prueba' : 'Probar Sonido'}</span>
+            <span id="preview-dance-audio-icon">${isPlaying ? '⏸️' : '▶️'}</span>
+            <span id="preview-dance-audio-txt">${isPlaying ? 'Pausar Sonido' : 'Probar Estación / Sonido'}</span>
           </button>
 
           <div style="display: flex; align-items: center; gap: 0.45rem; margin-left: auto;">
@@ -235,28 +346,83 @@ export const WorkoutView = {
     `;
   },
 
-  // Genera el dock interactivo de música en el cronómetro gigante
-  renderActiveMusicDock(currentEx) {
-    const rhythmData = danceAudioService.getActiveRhythmData();
+  // Genera el dock interactivo de música en el cronómetro gigante (para Baile o Música General)
+  renderActiveMusicDock(currentEx, workout) {
+    const isDance = (currentEx?.category === 'Baile & Ritmos' || workout?.category === 'Baile & Ritmos');
     const isPlaying = danceAudioService.isPlaying;
     const mode = danceAudioService.currentMode;
 
-    let trackTitle = `🥁 Base: ${rhythmData.name}`;
-    let trackMeta = `${danceAudioService.bpm} BPM · Compás de 8 Tiempos (Offline)`;
+    if (mode === 'none') {
+      return '';
+    }
+
+    if (isDance) {
+      const rhythmData = danceAudioService.getActiveRhythmData();
+      let trackTitle = `🥁 Base: ${rhythmData.name}`;
+      let trackMeta = `${danceAudioService.bpm} BPM · Compás de 8 Tiempos (Offline)`;
+
+      if (mode === 'local_file') {
+        trackTitle = `📁 ${danceAudioService.localFileName || 'Audio Local en Bucle'}`;
+        trackMeta = `Reproducción Local · Cero Datos`;
+      } else if (mode === 'streaming') {
+        trackTitle = `🎧 Playlist: ${rhythmData.name.split(' ')[0]} Streaming`;
+        trackMeta = `Audio Online`;
+      }
+
+      return `
+        <div class="active-music-dock dock-dance-theme" id="giant-active-music-dock">
+          <div class="dock-main-row">
+            <div class="dock-track-info">
+              <div class="dock-soundwave ${isPlaying ? 'is-playing' : ''}" id="giant-dock-soundwave">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <div class="dock-track-text">
+                <span class="dock-track-title" id="giant-dock-track-title">${trackTitle}</span>
+                <span class="dock-track-meta" id="giant-dock-track-meta">${trackMeta}</span>
+              </div>
+            </div>
+
+            <div class="dock-actions-row">
+              <select id="giant-dock-rhythm-selector" class="dock-source-selector" title="Cambiar ritmo de práctica">
+                <option value="bachata" ${danceAudioService.activeRhythm === 'bachata' ? 'selected' : ''}>💃 Bachata (128 BPM)</option>
+                <option value="salsa" ${danceAudioService.activeRhythm === 'salsa' ? 'selected' : ''}>🔥 Salsa (185 BPM)</option>
+                <option value="merengue" ${danceAudioService.activeRhythm === 'merengue' ? 'selected' : ''}>🎺 Merengue (150 BPM)</option>
+                <option value="reggaeton" ${danceAudioService.activeRhythm === 'reggaeton' ? 'selected' : ''}>⚡ Urbano (96 BPM)</option>
+              </select>
+
+              <button type="button" class="dock-play-btn" id="btn-giant-dock-play" title="${isPlaying ? 'Pausar audio' : 'Reproducir audio'}">
+                ${isPlaying ? '⏸️' : '▶️'}
+              </button>
+
+              <div class="dock-vol-wrap" title="Volumen de la música">
+                <span style="font-size: 0.75rem;">🔊</span>
+                <input type="range" class="dock-vol-slider" id="giant-dock-vol-slider" min="0" max="1" step="0.05" value="${danceAudioService.volume}">
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ENTORNO GENERAL (Fuerza, Cardio, Pecho, etc.): Dock de Radio Libre & MP3
+    const station = danceAudioService.getActiveStationData();
+    const allStations = danceAudioService.getAllStations();
+    let trackTitle = `📻 ${station.name}`;
+    let trackMeta = `Radio en Vivo · ${station.genre} (Royalty-Free)`;
 
     if (mode === 'local_file') {
-      trackTitle = `📁 ${danceAudioService.localFileName || 'Audio Local en Bucle'}`;
-      trackMeta = `Reproducción Local · Cero Datos`;
+      trackTitle = `📁 ${danceAudioService.localFileName || 'Mi Música Local'}`;
+      trackMeta = `Reproducción Local Offline · Cero Datos`;
     } else if (mode === 'streaming') {
-      trackTitle = `🎧 Playlist: ${rhythmData.name.split(' ')[0]} Streaming`;
-      trackMeta = `Audio Online`;
+      trackTitle = `🎬 Playlist NCS Libre`;
+      trackMeta = `Streaming de YouTube`;
     }
 
     return `
-      <div class="active-music-dock" id="giant-active-music-dock">
+      <div class="active-music-dock dock-workout-theme" id="giant-active-music-dock">
         <div class="dock-main-row">
           <div class="dock-track-info">
-            <div class="dock-soundwave ${isPlaying ? 'is-playing' : ''}" id="giant-dock-soundwave">
+            <div class="dock-soundwave dock-soundwave-cyan ${isPlaying ? 'is-playing' : ''}" id="giant-dock-soundwave">
               <span></span><span></span><span></span><span></span>
             </div>
             <div class="dock-track-text">
@@ -266,20 +432,19 @@ export const WorkoutView = {
           </div>
 
           <div class="dock-actions-row">
-            <select id="giant-dock-rhythm-selector" class="dock-source-selector" title="Cambiar ritmo de práctica">
-              <option value="bachata" ${danceAudioService.activeRhythm === 'bachata' ? 'selected' : ''}>💃 Bachata (128 BPM)</option>
-              <option value="salsa" ${danceAudioService.activeRhythm === 'salsa' ? 'selected' : ''}>🔥 Salsa (185 BPM)</option>
-              <option value="merengue" ${danceAudioService.activeRhythm === 'merengue' ? 'selected' : ''}>🎺 Merengue (150 BPM)</option>
-              <option value="reggaeton" ${danceAudioService.activeRhythm === 'reggaeton' ? 'selected' : ''}>⚡ Urbano (96 BPM)</option>
+            <select id="giant-dock-station-selector" class="dock-source-selector" title="Cambiar estación de música libre">
+              ${allStations.map(st => `
+                <option value="${st.id}" ${danceAudioService.activeStationId === st.id ? 'selected' : ''}>${st.name}</option>
+              `).join('')}
             </select>
 
-            <button type="button" class="dock-play-btn" id="btn-giant-dock-play" title="${isPlaying ? 'Pausar audio' : 'Reproducir audio'}">
+            <button type="button" class="dock-play-btn dock-play-btn-cyan" id="btn-giant-dock-play" title="${isPlaying ? 'Pausar música' : 'Reproducir música'}">
               ${isPlaying ? '⏸️' : '▶️'}
             </button>
 
             <div class="dock-vol-wrap" title="Volumen de la música">
               <span style="font-size: 0.75rem;">🔊</span>
-              <input type="range" class="dock-vol-slider" id="giant-dock-vol-slider" min="0" max="1" step="0.05" value="${danceAudioService.volume}">
+              <input type="range" class="dock-vol-slider dock-vol-slider-cyan" id="giant-dock-vol-slider" min="0" max="1" step="0.05" value="${danceAudioService.volume}">
             </div>
           </div>
         </div>
@@ -497,8 +662,10 @@ export const WorkoutView = {
             </div>
           </div>
 
-          <!-- CONSOLA DE AUDIO RÍTMICO SI ES BAILE & RITMOS -->
-          ${this.renderDanceMusicSetupCard()}
+          <!-- CONSOLA DE AUDIO FITPULSE (MÚSICA O BAILE) -->
+          <div id="routine-music-setup-slot">
+            ${this.renderDanceMusicSetupCard()}
+          </div>
         </div>
 
         <!-- COLUMNA DERECHA: LISTA DE EJERCICIOS DE LA SESIÓN -->
@@ -748,11 +915,18 @@ export const WorkoutView = {
     const exCount = container.querySelector('#exercise-count-text');
     if (exCount) exCount.textContent = `${this.routineConfig.exercises.length} movimientos seleccionados`;
 
-    // Actualizar visibilidad de consola de audio si es Baile & Ritmos
+    // Actualizar consola de música según disciplina
     const isDance = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((x) => x.category === 'Baile & Ritmos');
-    const musicWrapper = container.querySelector('#dance-music-setup-wrapper');
-    if (musicWrapper) {
-      musicWrapper.style.display = isDance ? 'block' : 'none';
+    danceAudioService.isDanceMode = isDance;
+    if (isDance) {
+      if (danceAudioService.currentMode === 'radio') danceAudioService.currentMode = 'synth';
+    } else {
+      if (danceAudioService.currentMode === 'synth') danceAudioService.currentMode = 'radio';
+    }
+    const musicSlot = container.querySelector('#routine-music-setup-slot');
+    if (musicSlot) {
+      musicSlot.innerHTML = this.renderDanceMusicSetupCard();
+      this.attachMusicSetupEvents(container);
     }
   },
 
@@ -952,94 +1126,21 @@ export const WorkoutView = {
     container.querySelector('#setup-category')?.addEventListener('change', (e) => {
       this.routineConfig.category = e.target.value;
       const isDanceNow = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((x) => x.category === 'Baile & Ritmos');
-      const musicWrap = container.querySelector('#dance-music-setup-wrapper');
-      if (musicWrap) {
-        musicWrap.style.display = isDanceNow ? 'block' : 'none';
+      danceAudioService.isDanceMode = isDanceNow;
+      if (isDanceNow) {
+        if (danceAudioService.currentMode === 'radio') danceAudioService.currentMode = 'synth';
+      } else {
+        if (danceAudioService.currentMode === 'synth') danceAudioService.currentMode = 'radio';
+      }
+      const musicSlot = container.querySelector('#routine-music-setup-slot');
+      if (musicSlot) {
+        musicSlot.innerHTML = this.renderDanceMusicSetupCard();
+        this.attachMusicSetupEvents(container);
       }
     });
 
-    // 4.2 Controles interactivos de la Consola de Audio Rítmico
-    // Tabs de selección de origen (Web Audio Synth / Streaming / MP3 Local)
-    container.querySelectorAll('.music-tab-btn').forEach((tabBtn) => {
-      tabBtn.addEventListener('click', () => {
-        container.querySelectorAll('.music-tab-btn').forEach((b) => b.classList.remove('active'));
-        tabBtn.classList.add('active');
-        const mode = tabBtn.getAttribute('data-music-mode');
-        danceAudioService.setMode(mode);
-
-        const synthPane = container.querySelector('#pane-music-synth');
-        const streamPane = container.querySelector('#pane-music-streaming');
-        const filePane = container.querySelector('#pane-music-local_file');
-
-        if (synthPane) synthPane.style.display = mode === 'synth' ? 'block' : 'none';
-        if (streamPane) streamPane.style.display = mode === 'streaming' ? 'block' : 'none';
-        if (filePane) filePane.style.display = mode === 'local_file' ? 'block' : 'none';
-      });
-    });
-
-    // Selección de ritmo offline
-    container.querySelectorAll('.rhythm-pick-card').forEach((rCard) => {
-      rCard.addEventListener('click', () => {
-        container.querySelectorAll('.rhythm-pick-card').forEach((c) => c.classList.remove('active-rhythm'));
-        rCard.classList.add('active-rhythm');
-        const rhythmId = rCard.getAttribute('data-rhythm-id');
-        danceAudioService.activeRhythm = rhythmId;
-        const rhythmData = DANCE_RHYTHMS[rhythmId] || DANCE_RHYTHMS.bachata;
-        danceAudioService.bpm = rhythmData.defaultBpm;
-
-        const descText = container.querySelector('#txt-synth-rhythm-desc');
-        if (descText) {
-          descText.innerHTML = `ℹ️ <strong>${rhythmData.name}:</strong> ${rhythmData.description}`;
-        }
-
-        if (danceAudioService.isPlaying && danceAudioService.currentMode === 'synth') {
-          danceAudioService.play();
-        }
-        Toast.info(`Ritmo: ${rhythmData.name} (${danceAudioService.bpm} BPM)`);
-      });
-    });
-
-    // Carga de archivo de audio local (MP3 / WAV / M4A)
-    const localFileInput = container.querySelector('#input-local-dance-mp3');
-    localFileInput?.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        const name = danceAudioService.loadLocalFile(file);
-        const nameDisplay = container.querySelector('#txt-local-audio-name');
-        if (nameDisplay) {
-          nameDisplay.innerHTML = `📁 Archivo seleccionado: <strong>${name}</strong> (Reproducción local activa)`;
-        }
-        Toast.success(`Audio cargado: ${name}`);
-      }
-    });
-
-    // Enlace de streaming personalizado
-    const customStreamInput = container.querySelector('#input-custom-stream-url');
-    customStreamInput?.addEventListener('input', (e) => {
-      danceAudioService.customStreamingUrl = e.target.value.trim();
-    });
-
-    container.querySelectorAll('input[name="selected-streaming-pl"]').forEach((r) => {
-      r.addEventListener('change', (e) => {
-        danceAudioService.selectedPlaylistIndex = parseInt(e.target.value, 10) || 0;
-      });
-    });
-
-    // Botón de prueba de sonido
-    const previewBtn = container.querySelector('#btn-preview-dance-audio');
-    previewBtn?.addEventListener('click', () => {
-      const isPlaying = danceAudioService.togglePlay();
-      const icon = container.querySelector('#preview-dance-audio-icon');
-      const txt = container.querySelector('#preview-dance-audio-txt');
-      if (icon) icon.textContent = isPlaying ? '⏸️' : '▶️';
-      if (txt) txt.textContent = isPlaying ? 'Pausar Prueba' : 'Probar Sonido';
-    });
-
-    // Slider de volumen en setup
-    const previewVol = container.querySelector('#range-dance-preview-volume');
-    previewVol?.addEventListener('input', (e) => {
-      danceAudioService.setVolume(e.target.value);
-    });
+    // 4.2 Inicializar oyentes de la consola musical
+    this.attachMusicSetupEvents(container);
 
     // Detener audio rítmico automáticamente si el atleta sale de la vista
     if (!this._hashChangeListenerAttached) {
@@ -1125,9 +1226,11 @@ export const WorkoutView = {
         if (countElem) countElem.textContent = `${this.routineConfig.exercises.length} movimientos seleccionados`;
 
         const isDanceNow = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((x) => x.category === 'Baile & Ritmos');
-        const musicWrap = container.querySelector('#dance-music-setup-wrapper');
-        if (musicWrap) {
-          musicWrap.style.display = isDanceNow ? 'block' : 'none';
+        danceAudioService.isDanceMode = isDanceNow;
+        const musicSlot = container.querySelector('#routine-music-setup-slot');
+        if (musicSlot) {
+          musicSlot.innerHTML = this.renderDanceMusicSetupCard();
+          this.attachMusicSetupEvents(container);
         }
       }
     });
@@ -1209,9 +1312,11 @@ export const WorkoutView = {
           if (countElem) countElem.textContent = `${this.routineConfig.exercises.length} movimientos seleccionados`;
 
           const isDanceNow = this.routineConfig.category === 'Baile & Ritmos' || this.routineConfig.exercises.some((x) => x.category === 'Baile & Ritmos');
-          const musicWrap = container.querySelector('#dance-music-setup-wrapper');
-          if (musicWrap) {
-            musicWrap.style.display = isDanceNow ? 'block' : 'none';
+          danceAudioService.isDanceMode = isDanceNow;
+          const musicSlot = container.querySelector('#routine-music-setup-slot');
+          if (musicSlot) {
+            musicSlot.innerHTML = this.renderDanceMusicSetupCard();
+            this.attachMusicSetupEvents(container);
           }
 
           modal.style.display = 'none';
@@ -1268,6 +1373,115 @@ export const WorkoutView = {
     });
   },
 
+  attachMusicSetupEvents(container) {
+    // Tabs de selección de origen
+    container.querySelectorAll('.music-tab-btn').forEach((tabBtn) => {
+      tabBtn.addEventListener('click', () => {
+        container.querySelectorAll('.music-tab-btn').forEach((b) => b.classList.remove('active'));
+        tabBtn.classList.add('active');
+        const mode = tabBtn.getAttribute('data-music-mode');
+        danceAudioService.setMode(mode);
+
+        const synthPane = container.querySelector('#pane-music-synth');
+        const radioPane = container.querySelector('#pane-music-radio');
+        const streamPane = container.querySelector('#pane-music-streaming');
+        const filePane = container.querySelector('#pane-music-local_file');
+        const nonePane = container.querySelector('#pane-music-none');
+
+        if (synthPane) synthPane.style.display = mode === 'synth' ? 'block' : 'none';
+        if (radioPane) radioPane.style.display = mode === 'radio' ? 'block' : 'none';
+        if (streamPane) streamPane.style.display = mode === 'streaming' ? 'block' : 'none';
+        if (filePane) filePane.style.display = mode === 'local_file' ? 'block' : 'none';
+        if (nonePane) nonePane.style.display = mode === 'none' ? 'block' : 'none';
+      });
+    });
+
+    // Selección de estación de radio libre
+    container.querySelectorAll('.station-pick-card').forEach((sCard) => {
+      sCard.addEventListener('click', () => {
+        container.querySelectorAll('.station-pick-card').forEach((c) => c.classList.remove('active-station'));
+        sCard.classList.add('active-station');
+        const stationId = sCard.getAttribute('data-station-id');
+        danceAudioService.setStation(stationId);
+
+        const descText = container.querySelector('#txt-station-desc');
+        const stationData = danceAudioService.getActiveStationData();
+        if (descText && stationData) {
+          descText.innerHTML = `ℹ️ <strong>${stationData.name}:</strong> ${stationData.description} (Género: ${stationData.genre})`;
+        }
+
+        if (danceAudioService.isPlaying && danceAudioService.currentMode === 'radio') {
+          danceAudioService.play();
+        }
+        Toast.info(`Estación: ${stationData.name}`);
+      });
+    });
+
+    // Selección de ritmo offline (Baile)
+    container.querySelectorAll('.rhythm-pick-card').forEach((rCard) => {
+      rCard.addEventListener('click', () => {
+        container.querySelectorAll('.rhythm-pick-card').forEach((c) => c.classList.remove('active-rhythm'));
+        rCard.classList.add('active-rhythm');
+        const rhythmId = rCard.getAttribute('data-rhythm-id');
+        danceAudioService.activeRhythm = rhythmId;
+        const rhythmData = DANCE_RHYTHMS[rhythmId] || DANCE_RHYTHMS.bachata;
+        danceAudioService.bpm = rhythmData.defaultBpm;
+
+        const descText = container.querySelector('#txt-synth-rhythm-desc');
+        if (descText) {
+          descText.innerHTML = `ℹ️ <strong>${rhythmData.name}:</strong> ${rhythmData.description}`;
+        }
+
+        if (danceAudioService.isPlaying && danceAudioService.currentMode === 'synth') {
+          danceAudioService.play();
+        }
+        Toast.info(`Ritmo: ${rhythmData.name} (${danceAudioService.bpm} BPM)`);
+      });
+    });
+
+    // Carga de archivo de audio local (MP3 / WAV / M4A)
+    const localFileInput = container.querySelector('#input-local-dance-mp3');
+    localFileInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const name = danceAudioService.loadLocalFile(file);
+        const nameDisplay = container.querySelector('#txt-local-audio-name');
+        if (nameDisplay) {
+          nameDisplay.innerHTML = `📁 Archivo seleccionado: <strong>${name}</strong> (Reproducción local activa)`;
+        }
+        Toast.success(`Audio cargado: ${name}`);
+      }
+    });
+
+    // Enlace de streaming personalizado
+    const customStreamInput = container.querySelector('#input-custom-stream-url');
+    customStreamInput?.addEventListener('input', (e) => {
+      danceAudioService.customStreamingUrl = e.target.value.trim();
+    });
+
+    container.querySelectorAll('input[name="selected-streaming-pl"]').forEach((r) => {
+      r.addEventListener('change', (e) => {
+        danceAudioService.selectedPlaylistIndex = parseInt(e.target.value, 10) || 0;
+      });
+    });
+
+    // Botón de prueba de sonido
+    const previewBtn = container.querySelector('#btn-preview-dance-audio');
+    previewBtn?.addEventListener('click', () => {
+      const isPlaying = danceAudioService.togglePlay();
+      const icon = container.querySelector('#preview-dance-audio-icon');
+      const txt = container.querySelector('#preview-dance-audio-txt');
+      if (icon) icon.textContent = isPlaying ? '⏸️' : '▶️';
+      if (txt) txt.textContent = isPlaying ? 'Pausar Sonido' : 'Probar Estación / Sonido';
+    });
+
+    // Slider de volumen en setup
+    const previewVol = container.querySelector('#range-dance-preview-volume');
+    previewVol?.addEventListener('input', (e) => {
+      danceAudioService.setVolume(e.target.value);
+    });
+  },
+
   // ============================================================================
   // PANTALLA 2: MODO DE ENTRENAMIENTO ACTIVO (CRONÓMETRO GIGANTE & FASES)
   // ============================================================================
@@ -1275,6 +1489,17 @@ export const WorkoutView = {
     this.activeController.currentExerciseIdx = 0;
     this.activeController.currentRound = 1;
     this.activeController.isPaused = false;
+
+    const isDance = workout.category === 'Baile & Ritmos' || (workout.exercises || []).some(e => e.category === 'Baile & Ritmos');
+    danceAudioService.isDanceMode = isDance;
+
+    // Si es entrenamiento general y tiene música habilitada, iniciarla de inmediato
+    if (!isDance && danceAudioService.currentMode !== 'none') {
+      if (danceAudioService.currentMode === 'synth') {
+        danceAudioService.currentMode = 'radio';
+      }
+      danceAudioService.play();
+    }
 
     // Si hay tiempo de preparación seteado (> 0), largar en PREPARACIÓN
     if (this.routineConfig.prepSeconds > 0) {
@@ -1304,16 +1529,29 @@ export const WorkoutView = {
     } else if (phase === 'work') {
       Sound.playGo();
       const currentEx = workout?.exercises?.[this.activeController.currentExerciseIdx];
-      if (currentEx && (currentEx.category === 'Baile & Ritmos' || workout.category === 'Baile & Ritmos')) {
+      const isDance = (currentEx?.category === 'Baile & Ritmos' || workout?.category === 'Baile & Ritmos');
+
+      if (isDance) {
+        danceAudioService.isDanceMode = true;
         const detectedRhythm = this.detectRhythmFromExercise(currentEx);
         danceAudioService.activeRhythm = detectedRhythm;
         danceAudioService.bpm = (DANCE_RHYTHMS[detectedRhythm] || DANCE_RHYTHMS.bachata).defaultBpm;
         danceAudioService.stop();
         danceAudioService.play();
+      } else {
+        danceAudioService.isDanceMode = false;
+        if (danceAudioService.currentMode !== 'none' && !danceAudioService.isPlaying) {
+          danceAudioService.play();
+        }
       }
     } else if (phase === 'rest') {
       Sound.playRest();
-      danceAudioService.pause();
+      const currentEx = workout?.exercises?.[this.activeController.currentExerciseIdx];
+      const isDance = (currentEx?.category === 'Baile & Ritmos' || workout?.category === 'Baile & Ritmos');
+      if (isDance) {
+        danceAudioService.pause();
+      }
+      // En modo general de entrenamiento, la música de fondo continúa para sostener la motivación en el descanso
     }
 
     // Iniciar temporizador de la fase
@@ -1486,8 +1724,8 @@ export const WorkoutView = {
             ${this.formatTimeDigits(this.activeController.phaseSeconds)}
           </div>
 
-          <!-- CONSOLA DE AUDIO RÍTMICO EN VIVO (BAILE & RITMOS) -->
-          ${(currentEx.category === 'Baile & Ritmos' || workout.category === 'Baile & Ritmos') ? this.renderActiveMusicDock(currentEx) : ''}
+          <!-- CONSOLA DE AUDIO EN VIVO (MÚSICA O BAILE) -->
+          ${this.renderActiveMusicDock(currentEx, workout)}
         </div>
 
         <!-- CONTENIDO ESPECÍFICO SEGÚN LA FASE -->
@@ -1714,7 +1952,7 @@ export const WorkoutView = {
       this.handlePhaseEnd(container, workout, profile);
     });
 
-    // 7. Controles del Dock de Audio Rítmico en Pantalla Gigante
+    // 7. Controles del Dock de Audio en Pantalla Gigante
     const giantPlayBtn = container.querySelector('#btn-giant-dock-play');
     giantPlayBtn?.addEventListener('click', () => {
       const isPlaying = danceAudioService.togglePlay();
@@ -1739,6 +1977,18 @@ export const WorkoutView = {
       if (trackTitle) trackTitle.textContent = `🥁 Base: ${rhythmData.name}`;
       if (trackMeta) trackMeta.textContent = `${danceAudioService.bpm} BPM · Compás de 8 Tiempos (Offline)`;
       Toast.info(`Ritmo: ${rhythmData.name} (${danceAudioService.bpm} BPM)`);
+    });
+
+    const stationSelector = container.querySelector('#giant-dock-station-selector');
+    stationSelector?.addEventListener('change', (e) => {
+      const stationId = e.target.value;
+      danceAudioService.playStation(stationId);
+      const station = danceAudioService.getActiveStationData();
+      const trackTitle = container.querySelector('#giant-dock-track-title');
+      const trackMeta = container.querySelector('#giant-dock-track-meta');
+      if (trackTitle) trackTitle.textContent = `📻 ${station.name}`;
+      if (trackMeta) trackMeta.textContent = `Radio en Vivo · ${station.genre} (Royalty-Free)`;
+      Toast.info(`Estación: ${station.name}`);
     });
 
     const dockVolSlider = container.querySelector('#giant-dock-vol-slider');
