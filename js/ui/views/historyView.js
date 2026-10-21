@@ -375,40 +375,42 @@ export const HistoryView = {
               html += `<p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.5rem 0;">Esta sesión no tiene un desglose individual de ejercicios almacenado.</p>`;
             } else {
               html += `
-                <table class="drawer-exercise-table">
-                  <thead>
-                    <tr>
-                      <th style="width: 32px;">#</th>
-                      <th>${isDance ? 'Paso de Baile' : 'Ejercicio'}</th>
-                      <th>${isDance ? 'Modalidad' : 'Series'}</th>
-                      <th>${isDance ? 'Tiempo / Vuelta' : 'Reps × Peso'}</th>
-                      <th>${isDance ? 'Gasto Calórico' : 'Máx 1RM'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${exercises.map((ex, i) => {
-                      const setsCount = (ex.sets || []).length || 1;
-                      const firstSet = (ex.sets && ex.sets[0]) ? ex.sets[0] : {};
-                      const danceModeLabel = (firstSet.danceMode === 'pareja' || ex.danceMode === 'pareja') ? '👥 En Pareja' : '👤 Solo';
-                      const best1RMText = ex.best_1rm > 0 ? `${ex.best_1rm} kg` : '-';
-                      const calsText = ex.calories_burned > 0 ? `${ex.calories_burned} kcal` : '~';
+                <div class="table-responsive-wrapper">
+                  <table class="drawer-exercise-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 32px;">#</th>
+                        <th>${isDance ? 'Paso de Baile' : 'Ejercicio'}</th>
+                        <th>${isDance ? 'Modalidad' : 'Series'}</th>
+                        <th>${isDance ? 'Tiempo / Vuelta' : 'Reps × Peso'}</th>
+                        <th>${isDance ? 'Gasto Calórico' : 'Máx 1RM'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${exercises.map((ex, i) => {
+                        const setsCount = (ex.sets || []).length || 1;
+                        const firstSet = (ex.sets && ex.sets[0]) ? ex.sets[0] : {};
+                        const danceModeLabel = (firstSet.danceMode === 'pareja' || ex.danceMode === 'pareja') ? '👥 En Pareja' : '👤 Solo';
+                        const best1RMText = ex.best_1rm > 0 ? `${ex.best_1rm} kg` : '-';
+                        const calsText = ex.calories_burned > 0 ? `${ex.calories_burned} kcal` : '~';
 
-                      return `
-                        <tr>
-                          <td>${i + 1}</td>
-                          <td class="drawer-ex-name">${ex.exercise_name}</td>
-                          <td>${isDance ? danceModeLabel : `${setsCount} series`}</td>
-                          <td>
-                            ${isDance
-                              ? `${firstSet.duration_seconds || 45} segs`
-                              : `${firstSet.reps || 10} reps ${firstSet.weight_kg > 0 ? `× ${firstSet.weight_kg}kg` : ''}`}
-                          </td>
-                          <td>${isDance ? calsText : best1RMText}</td>
-                        </tr>
-                      `;
-                    }).join('')}
-                  </tbody>
-                </table>
+                        return `
+                          <tr>
+                            <td>${i + 1}</td>
+                            <td class="drawer-ex-name">${ex.exercise_name}</td>
+                            <td>${isDance ? danceModeLabel : `${setsCount} series`}</td>
+                            <td>
+                              ${isDance
+                                ? `${firstSet.duration_seconds || 45} segs`
+                                : `${firstSet.reps || 10} reps ${firstSet.weight_kg > 0 ? `× ${firstSet.weight_kg}kg` : ''}`}
+                            </td>
+                            <td>${isDance ? calsText : best1RMText}</td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>
               `;
             }
 

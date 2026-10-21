@@ -530,3 +530,121 @@ select.form-control option {
 .toast-close:hover {
   color: #fff;
 }
+
+/* ==============================================================================
+   RESPONSIVE DESIGN SYSTEM (MOBILE TOUCH & ERGONOMICS)
+   ============================================================================== */
+@media (max-width: 768px) {
+  .card {
+    padding: 1.15rem 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  .card-header {
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-icon-box {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .card-title {
+    font-size: 1.05rem;
+  }
+
+  .card-description {
+    font-size: 0.82rem;
+  }
+
+  /* Touch accessibility standard for mobile buttons */
+  .btn {
+    min-height: 44px;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .btn-sm {
+    min-height: 38px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .btn-lg {
+    min-height: 50px;
+    padding: 0.8rem 1.4rem;
+    font-size: 1.02rem;
+  }
+
+  /* Formularios e inputs: font-size 16px obligatorio para prevenir zoom intrusivo en iOS */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .input-field,
+  .select-field,
+  .textarea-field,
+  .form-control,
+  select.form-control {
+    font-size: 16px !important;
+    min-height: 46px;
+    padding: 0.65rem 0.85rem;
+    border-radius: var(--radius-sm);
+  }
+
+  label, .form-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #e2e8f0;
+  }
+
+  /* Modales móviles sin desbordes */
+  .modal-backdrop {
+    padding: 0.75rem;
+  }
+
+  .modal-card,
+  .modal-dialog {
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius-lg);
+  }
+
+  .modal-header {
+    padding: 1rem 1.15rem;
+  }
+
+  .modal-title {
+    font-size: 1.15rem;
+  }
+
+  /* Notificaciones toast flotantes en móvil (arriba del bottom nav) */
+  .toast-container {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px) + 0.65rem);
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+  }
+
+  .toast-item {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 1rem 0.85rem;
+  }
+
+  .modal-backdrop {
+    padding: 0.5rem;
+  }
+}
+

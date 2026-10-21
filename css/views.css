@@ -20,14 +20,15 @@
 }
 
 .view-title {
-  font-size: 2rem;
+  font-size: clamp(1.4rem, 5vw, 2rem);
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .view-subtitle {
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: clamp(0.85rem, 3.2vw, 0.95rem);
+  line-height: 1.5;
   max-width: 650px;
 }
 
@@ -1296,7 +1297,7 @@
 
 .catalog-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 1.25rem;
 }
 
@@ -1884,7 +1885,8 @@ body.auth-locked .app-main {
 
 .routine-selector-col {
   flex: 1;
-  min-width: 280px;
+  min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -2616,51 +2618,452 @@ body.auth-locked .app-main {
   width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .routine-setup-grid {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
   }
 
+  .setup-col-left,
+  .setup-col-right {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 768px) {
+  /* GESTOR DE RUTINAS */
   .routine-manager-main {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.85rem;
   }
 
   .routine-actions-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     width: 100%;
-    justify-content: stretch;
+    gap: 0.5rem;
   }
 
   .btn-routine-act {
-    flex: 1;
+    width: 100%;
+    white-space: normal;
+    text-align: center;
     justify-content: center;
+    font-size: 0.82rem;
+    padding: 0.55rem 0.5rem;
+    min-height: 42px;
+  }
+
+  .timing-selector-block {
+    padding: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .timing-title {
+    font-size: 0.88rem;
+  }
+
+  .preset-pill-group {
+    gap: 0.35rem;
+  }
+
+  .preset-pill {
+    min-height: 38px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.82rem;
   }
 
   .setup-exercise-item {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+    padding: 0.85rem;
+  }
+
+  .ex-item-info {
+    width: 100%;
+  }
+
+  .ex-item-name {
+    white-space: normal;
+    font-size: 0.95rem;
+    line-height: 1.3;
   }
 
   .ex-item-targets {
     width: 100%;
-    justify-content: flex-start;
-    padding-left: 2.5rem;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-left: 0;
+    flex-wrap: wrap;
   }
 
-  .giant-timer-display {
-    font-size: 4rem;
-    padding: 0.75rem 1.5rem;
+  .target-control-pill {
+    flex: 1;
+    min-width: 85px;
+    justify-content: space-between;
+    padding: 0.35rem 0.65rem;
+    min-height: 42px;
+  }
+
+  .input-target-reps,
+  .input-target-weight {
+    font-size: 16px !important;
+    width: 50px;
+    text-align: right;
+  }
+
+  .btn-del-item {
+    align-self: flex-end;
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  /* PANTALLA GIGANTE DE ENTRENAMIENTO */
+  .giant-workout-screen {
+    padding: 1.25rem 0.85rem;
+    min-height: auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .giant-top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .giant-session-meta {
+    width: 100%;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .giant-top-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    width: 100%;
+    gap: 0.4rem;
+  }
+
+  .giant-top-controls .btn {
+    padding: 0.45rem 0.35rem;
+    font-size: 0.76rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+    min-height: 42px;
+  }
+
+  .phase-status-pill {
+    font-size: clamp(0.82rem, 3.5vw, 0.95rem);
+    padding: 0.4rem 1.1rem;
+  }
+
+  .phase-round-counter {
+    font-size: clamp(0.78rem, 3.2vw, 0.88rem);
+    font-weight: 700;
   }
 
   .giant-exercise-name {
-    font-size: 1.8rem;
+    font-size: clamp(1.4rem, 6vw, 2.2rem);
+    line-height: 1.25;
+    margin: 0.4rem 0 0.2rem;
+  }
+
+  .phase-instruction-text {
+    font-size: clamp(0.82rem, 3vw, 0.95rem);
+    margin-bottom: 1rem;
+  }
+
+  .giant-timer-display {
+    font-size: clamp(3.2rem, 15vw, 5.2rem);
+    padding: 0.5rem clamp(1rem, 4vw, 2.25rem);
+    letter-spacing: 0.02em;
+    border-radius: var(--radius-lg);
+  }
+
+  /* DOCK DE AUDIO ACTIVO */
+  .active-music-dock {
+    padding: 0.75rem 0.85rem;
+    margin-top: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dock-main-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .dock-track-info {
+    width: 100%;
+  }
+
+  .dock-actions-row {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .dock-source-selector {
+    flex: 1;
+    min-width: 130px;
+    height: 40px;
+    font-size: 0.82rem;
+  }
+
+  .dock-play-btn {
+    width: 42px;
+    height: 42px;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+  }
+
+  .dock-vol-wrap {
+    flex-shrink: 0;
+  }
+
+  /* CAMPOS DE TRABAJO Y STEPPERS */
+  .work-inputs-card {
+    padding: 1rem 0.85rem;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .work-inputs-row {
     grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .stepper-input-box {
+    height: 52px;
+    border-radius: var(--radius-md);
+  }
+
+  .btn-step {
+    min-width: 56px;
+    height: 52px;
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .giant-input {
+    height: 52px;
+    font-size: 1.65rem !important;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  .giant-select {
+    height: 52px;
+    font-size: 16px !important;
+  }
+
+  #btn-complete-set {
+    min-height: 54px;
+    font-size: clamp(0.95rem, 4vw, 1.15rem);
+    padding: 0.85rem 1rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* FASE DE DESCANSO */
+  .rest-actions-card {
+    padding: 1rem 0.85rem;
+    width: 100%;
+  }
+
+  .rest-adjust-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  #btn-skip-rest {
+    grid-column: 1 / -1;
+    min-height: 50px;
+    font-size: 1rem;
+  }
+
+  #btn-rest-minus15,
+  #btn-rest-plus15 {
+    min-height: 44px;
+    font-size: 0.92rem;
+  }
+
+  /* PISTA DE COMPÁS RÍTMICO (BAILE) */
+  .dance-beat-track {
+    gap: 0.35rem;
+    justify-content: center;
+  }
+
+  .beat-step {
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+    border-radius: 9px;
+  }
+
+  .beat-step.beat-tap {
+    width: 58px;
+    font-size: 0.74rem;
+  }
+
+  .beat-divider {
+    width: 8px;
+    font-size: 1.2rem;
+  }
+
+  /* TARJETA DE SETUP DE MÚSICA */
+  .dance-music-setup-card,
+  .music-card-workout {
+    padding: 0.95rem 0.85rem;
+  }
+
+  .music-source-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.4rem;
+  }
+
+  .music-tab-btn {
+    font-size: 0.8rem;
+    padding: 0.45rem 0.5rem;
+    min-height: 42px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .station-pick-card,
+  .rhythm-pick-card {
+    padding: 0.7rem 0.8rem;
+  }
+
+  .music-quick-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  #btn-preview-dance-audio {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .music-quick-controls > div {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0 !important;
+  }
+
+  /* VISTA DE HISTORIAL Y KPI */
+  .history-kpi-summary {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  .history-kpi-card {
+    padding: 0.85rem 0.9rem;
+    gap: 0.65rem;
+  }
+
+  .kpi-num {
+    font-size: 1.25rem;
+  }
+
+  .session-main-row {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    padding: 0.9rem 0.85rem;
+  }
+
+  .session-info {
+    width: calc(100% - 46px);
+    min-width: 0;
+  }
+
+  .session-title {
+    font-size: 0.98rem;
+    word-break: break-word;
+  }
+
+  .session-metrics-pills {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .sm-val {
+    font-size: 1.05rem;
+  }
+
+  .history-detail-drawer {
+    padding: 1rem 0.85rem;
+  }
+
+  /* PANTALLA DE RESUMEN FINAL */
+  .summary-hero-card {
+    padding: 1.5rem 1rem;
+    max-width: 100%;
   }
 
   .summary-stats-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .sbox-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .giant-top-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #btn-giant-cancel-workout {
+    grid-column: 1 / -1;
+  }
+
+  .history-kpi-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .metrics-stat-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .stat-box {
+    padding: 0.75rem 0.65rem;
+  }
+
+  .stat-val {
+    font-size: 1.3rem;
   }
 }
 
@@ -3417,4 +3820,19 @@ body.auth-locked .app-main {
 
 .dock-vol-slider-cyan {
   accent-color: #00f2fe !important;
+}
+
+.rhythm-pick-grid,
+.station-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .rhythm-pick-grid,
+  .station-pick-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

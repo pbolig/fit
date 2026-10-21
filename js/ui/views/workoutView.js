@@ -176,7 +176,7 @@ export const WorkoutView = {
               <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.45rem;">
                 Seleccionar Ritmo de Percusión Sintética:
               </label>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-bottom: 0.65rem;">
+              <div class="rhythm-pick-grid">
                 ${allRhythms.map((r) => `
                   <button type="button" class="rhythm-pick-card ${r.id === activeRhythm ? 'active-rhythm' : ''}" data-rhythm-id="${r.id}">
                     <div style="font-size: 1.15rem;">${r.icon}</div>
@@ -275,7 +275,7 @@ export const WorkoutView = {
             <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.45rem;">
               Seleccionar Estación en Vivo para tu Rutina:
             </label>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.5rem; margin-bottom: 0.65rem;">
+            <div class="station-pick-grid">
               ${allStations.map((st) => `
                 <button type="button" class="station-pick-card ${st.id === danceAudioService.activeStationId ? 'active-station' : ''}" data-station-id="${st.id}">
                   <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
