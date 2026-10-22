@@ -2302,6 +2302,76 @@ body.auth-locked .app-main {
   color: var(--text-muted);
 }
 
+/* WAKE LOCK & OLED ECO DISPLAY MODES */
+.wake-lock-pill,
+.oled-eco-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-glass);
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  user-select: none;
+}
+
+.wake-lock-pill:hover,
+.oled-eco-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.wake-lock-pill.wake-active {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+.wake-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+  display: inline-block;
+  transition: all var(--trans-fast);
+}
+
+.wake-lock-pill.wake-active .wake-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.oled-eco-pill.eco-active {
+  background: rgba(0, 242, 254, 0.18);
+  border-color: rgba(0, 242, 254, 0.45);
+  color: #00f2fe;
+}
+
+/* MODO AHORRO BATERÍA OLED (NEGRO PURO 0W PIXELS) */
+body.oled-eco-active {
+  background-color: #000000 !important;
+}
+
+body.oled-eco-active::before,
+body.oled-eco-active::after {
+  display: none !important;
+}
+
+body.oled-eco-active .giant-workout-screen {
+  background: #000000 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+body.oled-eco-active .phase-hero-container {
+  background: transparent !important;
+}
+
 .phase-hero-container {
   display: flex;
   flex-direction: column;

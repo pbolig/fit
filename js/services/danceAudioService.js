@@ -396,16 +396,39 @@ class DanceAudioService {
 
     if (!this.streamAudioEl) {
       this.streamAudioEl = new Audio();
-      this.streamAudioEl.crossOrigin = 'anonymous';
+      this.streamAudioEl.preload = 'auto';
+      this.streamAudioEl.playsInline = true;
+      this.streamAudioEl.setAttribute('playsinline', 'true');
+      this.streamAudioEl.setAttribute('webkit-playsinline', 'true');
+
+      this.streamAudioEl.addEventListener('playing', () => {
+        window.dispatchEvent(new CustomEvent('fitpulse:dance-audio-state', {
+          detail: {
+            isPlaying: true,
+            mode: 'radio',
+            station: this.activeStationId,
+            isDance: false
+          }
+        }));
+      });
+
+      this.streamAudioEl.addEventListener('error', (e) => {
+        console.warn('FitPulse Audio: error en stream de radio:', e);
+      });
     }
 
     if (this.streamAudioEl.src !== station.streamUrl) {
       this.streamAudioEl.src = station.streamUrl;
+      this.streamAudioEl.load();
     }
+
     this.streamAudioEl.volume = this.volume;
-    this.streamAudioEl.play().catch((e) => {
-      console.warn('FitPulse Audio: esperando interacción o reproduciendo stream...', e);
-    });
+    const playPromise = this.streamAudioEl.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((e) => {
+        console.warn('FitPulse Audio: esperando autorización táctil para audio móvil...', e);
+      });
+    }
   }
 
   // ============================================================================

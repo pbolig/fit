@@ -16,6 +16,7 @@ import { Sound } from '../sound.js';
 import { Toast } from '../toast.js';
 import { router } from '../router.js';
 import { danceAudioService, DANCE_RHYTHMS, FREE_MUSIC_STATIONS, FREE_STREAMING_PLAYLISTS } from '../../services/danceAudioService.js';
+import { wakeLockService } from '../../services/wakeLockService.js';
 
 export const WorkoutView = {
   // Estado local del controlador de fases y configuración de la rutina activa
@@ -51,6 +52,7 @@ export const WorkoutView = {
       if (activeWorkout.config) {
         this.routineConfig = { ...this.routineConfig, ...activeWorkout.config };
       }
+      await wakeLockService.request();
       if (this.activeController.phase === 'idle') {
         this.enterPhase(container, activeWorkout, profile, 'work', this.routineConfig.workSeconds);
       } else {
@@ -1396,7 +1398,7 @@ export const WorkoutView = {
       });
     });
 
-    // Selección de estación de radio libre
+    // Selección de estación de radio libre (con inicio inmediato en móvil)
     container.querySelectorAll('.station-pick-card').forEach((sCard) => {
       sCard.addEventListener('click', () => {
         container.querySelectorAll('.station-pick-card').forEach((c) => c.classList.remove('active-station'));
@@ -1410,10 +1412,17 @@ export const WorkoutView = {
           descText.innerHTML = `ℹ️ <strong>${stationData.name}:</strong> ${stationData.description} (Género: ${stationData.genre})`;
         }
 
-        if (danceAudioService.isPlaying && danceAudioService.currentMode === 'radio') {
-          danceAudioService.play();
-        }
-        Toast.info(`Estación: ${stationData.name}`);
+        // En móvil y escritorio, activar y reproducir inmediatamente la estación seleccionada
+        danceAudioService.currentMode = 'radio';
+        danceAudioService.isDanceMode = false;
+        danceAudioService.play(stationId);
+
+        const previewIcon = container.querySelector('#preview-dance-audio-icon');
+        const previewTxt = container.querySelector('#preview-dance-audio-txt');
+        if (previewIcon) previewIcon.textContent = '⏸️';
+        if (previewTxt) previewTxt.textContent = 'Pausar Estación';
+
+        Toast.info(`Conectando con ${stationData.name}...`);
       });
     });
 
@@ -1426,15 +1435,20 @@ export const WorkoutView = {
         danceAudioService.activeRhythm = rhythmId;
         const rhythmData = DANCE_RHYTHMS[rhythmId] || DANCE_RHYTHMS.bachata;
         danceAudioService.bpm = rhythmData.defaultBpm;
+        danceAudioService.currentMode = 'synth';
+        danceAudioService.isDanceMode = true;
+        danceAudioService.play(rhythmId);
 
         const descText = container.querySelector('#txt-synth-rhythm-desc');
         if (descText) {
           descText.innerHTML = `ℹ️ <strong>${rhythmData.name}:</strong> ${rhythmData.description}`;
         }
 
-        if (danceAudioService.isPlaying && danceAudioService.currentMode === 'synth') {
-          danceAudioService.play();
-        }
+        const previewIcon = container.querySelector('#preview-dance-audio-icon');
+        const previewTxt = container.querySelector('#preview-dance-audio-txt');
+        if (previewIcon) previewIcon.textContent = '⏸️';
+        if (previewTxt) previewTxt.textContent = 'Pausar Sonido';
+
         Toast.info(`Ritmo: ${rhythmData.name} (${danceAudioService.bpm} BPM)`);
       });
     });
@@ -1485,10 +1499,13 @@ export const WorkoutView = {
   // ============================================================================
   // PANTALLA 2: MODO DE ENTRENAMIENTO ACTIVO (CRONÓMETRO GIGANTE & FASES)
   // ============================================================================
-  startPhasedRoutine(container, workout, profile) {
+  async startPhasedRoutine(container, workout, profile) {
     this.activeController.currentExerciseIdx = 0;
     this.activeController.currentRound = 1;
     this.activeController.isPaused = false;
+
+    // Activar bloqueo de pantalla (Wake Lock) para que el cronómetro se mantenga encendido
+    await wakeLockService.request();
 
     const isDance = workout.category === 'Baile & Ritmos' || (workout.exercises || []).some(e => e.category === 'Baile & Ritmos');
     danceAudioService.isDanceMode = isDance;
@@ -1696,6 +1713,13 @@ export const WorkoutView = {
             <span class="session-category-badge">${workout.category}</span>
             <span class="session-name-title">${workout.title}</span>
             <span class="session-elapsed-time">⏱️ Total: ${elapsedWorkoutMins}m</span>
+            <button type="button" id="btn-toggle-wake-lock" class="wake-lock-pill ${wakeLockService.isActive ? 'wake-active' : ''}" title="Pantalla siempre activa durante el entrenamiento">
+              <span class="wake-dot"></span>
+              <span class="wake-text">${wakeLockService.isActive ? '⚡ Pantalla Activa' : '💤 Bloqueo Normal'}</span>
+            </button>
+            <button type="button" id="btn-toggle-oled-eco" class="oled-eco-pill ${wakeLockService.isOledEcoMode ? 'eco-active' : ''}" title="Ahorro Batería OLED: Apaga subpíxeles con negro absoluto">
+              <span>🔋 Eco OLED ${wakeLockService.isOledEcoMode ? 'ON' : 'OFF'}</span>
+            </button>
           </div>
 
           <div class="giant-top-controls">
@@ -1849,22 +1873,60 @@ export const WorkoutView = {
   },
 
   attachPhaseEvents(container, workout, profile) {
+    // 0. Control de pantalla activa (Wake Lock) y Ahorro OLED
+    const wakeLockBtn = container.querySelector('#btn-toggle-wake-lock');
+    if (wakeLockBtn) {
+      wakeLockBtn.addEventListener('click', async () => {
+        if (wakeLockService.isActive) {
+          wakeLockService.release();
+          Toast.info('Bloqueo de pantalla desactivado (puede apagarse según tu móvil)');
+        } else {
+          const ok = await wakeLockService.request();
+          if (ok) {
+            Toast.success('Pantalla encendida permanente durante el entreno ⚡');
+          } else {
+            Toast.info('Navegador en modo ahorro de energía.');
+          }
+        }
+        wakeLockBtn.classList.toggle('wake-active', wakeLockService.isActive);
+        const txt = wakeLockBtn.querySelector('.wake-text');
+        if (txt) txt.textContent = wakeLockService.isActive ? '⚡ Pantalla Activa' : '💤 Bloqueo Normal';
+      });
+    }
+
+    const oledEcoBtn = container.querySelector('#btn-toggle-oled-eco');
+    if (oledEcoBtn) {
+      oledEcoBtn.addEventListener('click', () => {
+        const isEco = wakeLockService.toggleOledEcoMode();
+        oledEcoBtn.classList.toggle('eco-active', isEco);
+        oledEcoBtn.innerHTML = `<span>🔋 Eco OLED ${isEco ? 'ON' : 'OFF'}</span>`;
+        Toast.info(isEco ? 'Modo Eco OLED activado (negro puro 0W)' : 'Modo visual estándar activado');
+      });
+    }
+
     // 1. Pausar / Reanudar
     const pauseBtn = container.querySelector('#btn-giant-pause');
     if (pauseBtn) {
-      pauseBtn.addEventListener('click', () => {
+      pauseBtn.addEventListener('click', async () => {
         this.activeController.isPaused = !this.activeController.isPaused;
         pauseBtn.textContent = this.activeController.isPaused ? '▶️ Reanudar' : '⏸️ Pausar';
         if (this.activeController.isPaused) {
+          wakeLockService.release();
           if (danceAudioService.isPlaying) {
             this._wasDancePlayingBeforePause = true;
             danceAudioService.pause();
           }
         } else {
+          await wakeLockService.request();
           if (this._wasDancePlayingBeforePause) {
             danceAudioService.play();
             this._wasDancePlayingBeforePause = false;
           }
+        }
+        if (wakeLockBtn) {
+          wakeLockBtn.classList.toggle('wake-active', wakeLockService.isActive);
+          const txt = wakeLockBtn.querySelector('.wake-text');
+          if (txt) txt.textContent = wakeLockService.isActive ? '⚡ Pantalla Activa' : '💤 Bloqueo Normal';
         }
         Toast.info(this.activeController.isPaused ? 'Cronómetro en pausa' : 'Reanudando entrenamiento');
       });
@@ -1875,6 +1937,7 @@ export const WorkoutView = {
     if (finishEarlyBtn) {
       finishEarlyBtn.addEventListener('click', () => {
         if (confirm('¿Deseas finalizar el entrenamiento ahora y guardar el resumen de lo completado?')) {
+          wakeLockService.release();
           danceAudioService.stop();
           this.recordActiveSet(container, workout, profile);
           this.completeWorkoutRoutine(container, workout, profile);
@@ -1887,6 +1950,7 @@ export const WorkoutView = {
     if (cancelWorkoutBtn) {
       cancelWorkoutBtn.addEventListener('click', () => {
         if (confirm('¿Estás seguro de que deseas cancelar y descartar esta rutina?\n\nNo se guardará en tu historial ni en tus actividades.')) {
+          wakeLockService.release();
           danceAudioService.stop();
           if (this.activeController.phaseTimer) {
             clearInterval(this.activeController.phaseTimer);
@@ -2048,6 +2112,7 @@ export const WorkoutView = {
   // PANTALLA 3: RESUMEN FINAL DEL ENTRENAMIENTO (RESULTADOS Y CONCLUSIÓN)
   // ============================================================================
   async completeWorkoutRoutine(container, workout, profile) {
+    wakeLockService.release();
     danceAudioService.stop();
     if (this.activeController.phaseTimer) {
       clearInterval(this.activeController.phaseTimer);
