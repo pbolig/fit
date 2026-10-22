@@ -2050,6 +2050,10 @@ body.auth-locked .app-main {
   font-weight: 600;
   cursor: pointer;
   transition: all var(--trans-fast);
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  word-break: break-word;
 }
 
 .preset-pill:hover {
@@ -2634,6 +2638,47 @@ body.auth-locked .app-main {
 }
 
 @media (max-width: 768px) {
+  /* DASHBOARD HERO & ACCIONES */
+  .dashboard-hero {
+    padding: 1.25rem 1rem;
+    gap: 1rem;
+    contain: paint;
+    overflow: hidden;
+  }
+
+  .dashboard-hero::before {
+    display: none;
+  }
+
+  .active-workout-banner-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .active-workout-banner-actions .btn {
+    width: 100%;
+  }
+
+  .hero-actions {
+    width: 100%;
+  }
+
+  .hero-actions .btn {
+    width: 100%;
+  }
+
+  .auth-status-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .auth-status-banner #btn-sign-out {
+    width: 100%;
+  }
+
   /* GESTOR DE RUTINAS */
   .routine-manager-main {
     flex-direction: column;
@@ -2643,7 +2688,7 @@ body.auth-locked .app-main {
 
   .routine-actions-buttons {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
     width: 100%;
     gap: 0.5rem;
   }
@@ -2748,14 +2793,18 @@ body.auth-locked .app-main {
 
   .giant-top-controls {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     width: 100%;
-    gap: 0.4rem;
+    gap: 0.45rem;
+  }
+
+  #btn-giant-cancel-workout {
+    grid-column: 1 / -1;
   }
 
   .giant-top-controls .btn {
     padding: 0.45rem 0.35rem;
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     white-space: normal;
     text-align: center;
     line-height: 1.2;
@@ -2811,27 +2860,38 @@ body.auth-locked .app-main {
 
   .dock-actions-row {
     width: 100%;
-    justify-content: space-between;
-    gap: 0.45rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     flex-wrap: wrap;
   }
 
   .dock-source-selector {
-    flex: 1;
-    min-width: 130px;
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
     height: 40px;
     font-size: 0.82rem;
   }
 
   .dock-play-btn {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     font-size: 1.05rem;
     flex-shrink: 0;
   }
 
   .dock-vol-wrap {
-    flex-shrink: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    justify-content: flex-end;
+  }
+
+  .dock-vol-slider {
+    flex: 1;
+    max-width: 110px;
   }
 
   /* CAMPOS DE TRABAJO Y STEPPERS */
@@ -2906,25 +2966,28 @@ body.auth-locked .app-main {
 
   /* PISTA DE COMPÁS RÍTMICO (BAILE) */
   .dance-beat-track {
-    gap: 0.35rem;
+    gap: 0.25rem;
     justify-content: center;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .beat-step {
-    width: 38px;
-    height: 38px;
-    font-size: 1rem;
-    border-radius: 9px;
+    width: clamp(28px, 7vw, 36px);
+    height: clamp(28px, 7vw, 36px);
+    font-size: clamp(0.82rem, 2.4vw, 1rem);
+    border-radius: 8px;
   }
 
   .beat-step.beat-tap {
-    width: 58px;
-    font-size: 0.74rem;
+    width: clamp(42px, 11vw, 52px);
+    font-size: clamp(0.64rem, 1.8vw, 0.74rem);
+    padding: 0 2px;
   }
 
   .beat-divider {
-    width: 8px;
-    font-size: 1.2rem;
+    width: 6px;
+    font-size: 1rem;
   }
 
   /* TARJETA DE SETUP DE MÚSICA */
@@ -3062,7 +3125,7 @@ body.auth-locked .app-main {
     padding: 0.75rem 0.65rem;
   }
 
-  .stat-val {
+  .stat-value {
     font-size: 1.3rem;
   }
 }
@@ -3834,5 +3897,13 @@ body.auth-locked .app-main {
   .rhythm-pick-grid,
   .station-pick-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .routine-actions-buttons {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #btn-create-new-routine {
+    grid-column: 1 / -1;
   }
 }
